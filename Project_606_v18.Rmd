@@ -1,0 +1,3329 @@
+---
+title: Project Report - Exploring Cardiovascular Disease and its underlying factors
+  using Statistical Methods
+author:
+- DATA 606, Group 3
+- Athar, 30135709
+- Carlos, 30135941
+- Ekpo, 30135831
+- Sajid, 30156854
+- Shaila Hossain, 30136512
+date: "February 08, 2023"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  html_document: default
+  word_document: default
+
+fontsize: 12pt
+linkcolor: blue
+header-includes: \renewcommand{\and}{\\}
+---
+\centering
+\raggedright
+\newpage
+\tableofcontents
+---
+\newpage
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message=FALSE,
+                      warning=FALSE,
+                      out.width = "75%",
+                      fig.align = 'center')
+```
+
+
+# Introduction
+The human body constitutes of many diverse types of cells that together create tissues and subsequently organ systems. The heart is at the focal point of the human body responsible for pumping blood throughout the body and keeping us alive. Our focus of analysis is cardiovascular disease which is one of the leading causes of death globally. We will try to identify the following from our analysis:
+• Observing patients admitted to the hospital with diverse cardiovascular diseases.
+• Analyzing the underlying conditions associated with the patient.
+• Analyzing the outcome of the patient for the duration of hospital admission.
+We are still trying to assess how much scope we can handle within the time available for this project. We have identified some datasets from various sources and described them in the next section.
+
+\
+\
+
+
+
+# Dataset(s)
+We have utilized the “Hospital Admissions Data” dataset (File size: 2.6 MB, Rows: 15757 K, Columns: 56) available in the Kaggle portal (https://www.kaggle.com/datasets/ashishsahani/hospital-admissions-data/discussion/302894?resource=download&select=HDHI+Admission+data.csv)[Ref. 1] in CSV format.
+The Kaggle portal provides this dataset free of charge and can be used for research/project purposes. Details of their conditions are available in https://doi.org/10.3390/diagnostics12020241[Ref. 2]. This dataset is being provided under creative commons License (Attribution-Non-Commercial-Share Alike 4.0 International (CC BY-NC-SA 4.0)) https://creativecommons.org/licenses/by-nc-sa/4.0/ [Ref. 3].
+This data was collected from patients admitted over a period of two years (1 April 2017 to 31 March 2019) at Hero DMC Heart Institute, Unit of Dayanand Medical College and Hospital, Ludhiana, Punjab, India. During the study period, the cardiology unit had 15,757 admissions corresponding to 12,238 patients. 1921 patients who had multiple admissions.
+Specifically, data were related to patients ; date of admission; date of discharge; demographics, such as age, sex, locality (rural or urban); type of admission (emergency or outpatient); patient history, including smoking, alcohol, diabetes mellitus (DM), hypertension (HTN), prior coronary artery disease (CAD), prior cardiomyopathy (CMP), and chronic kidney disease (CKD); and lab parameters corresponding to hemoglobin (HB), total lymphocyte count (TLC), platelets, glucose, urea, creatinine, brain natriuretic peptide (BNP), raised cardiac enzymes (RCE) and ejection fraction (EF). Other comorbidities and features (28 features), including heart failure, STEMI, and pulmonary embolism, were recorded, and analyzed. The outcomes indicating whether the patient was discharged or expired in the hospital were also recorded.
+table_headings.csv - This data table has the descriptive headlines for all columns for the HDHI Admission data file.
+
+
+
+# Research Questions
+
+• Which independent variables have the best correlation to predicting the likelihood of the main hospital admission causes, e.g., heart failure, acute coronary syndrome (ACS) and acute kidney injury (AKI)?
+• Can we predict the possibility of heart failure, ACS and AKI looking at common habits of individuals? What kind of misclassification rate will we get from the study comparing different methods of predicting heart failures?
+• Is it possible to predict some relation between different causes of admissions with the main ones (heart failure, ACS, and AKI)?
+• What would be the true mean and standard deviation of duration of patients for the three different outcomes (EXPIRY, DISCHARGE and DAMA, in other words, passed away, discharge with medical approval and against medical approval, respectively) compared with the means and standard deviations by using different sampling methods (SRS, stratified and Cluster)?
+• If there is some auxiliary variable which we could use to increase the accuracy of sampling outcomes?
+
+
+
+# Data Wrangling & Analysis Procedure
+
+For data cleaning/wrangling and preliminary exploration/analysis related to individual parts of the project we will be utilizing R. We will perform if needed, formatting, sorting, and cleaning of all data as explained below:
+• Data type conversions
+• Deleting date columns to remove time-based dependency.
+• Sorting all the datasets for systematic analysis.
+• Deleting non-required columns as there are many categorical variables.
+• Removing null/missing values.
+• Format checking
+• Cross-check for duplicates.
+• Perform analysis on our research questions and add necessary visualizations.
+
+# Technique used
+Our main analysis for this project will be conducted using R. We are planning to implement the following techniques:
+• Sampling techniques such as SRS, Stratified random sampling.
+• Multinomial logistic regression
+• Linear discriminant analysis
+• Quadratic discriminant analysis
+• Resampling cross validation
+• Tree-based classification
+• Contingency table
+
+Further techniques will be included/removed in the final analysis and an accompanying report will be provided at the end of the project work.
+
+
+```{r echo=TRUE}
+#Library inclusion
+library(olsrr)
+library(ggplot2)
+library(GGally)
+library(lmtest)
+library(mctest)
+library(Ecdat)
+library(MASS)
+library(caret)
+library(leaps)
+require(car)
+require(zoo)
+library("dplyr")
+library(sampling)
+
+library(fmsb)
+library(reshape)
+library(caret)
+library(MASS)
+library(reshape2)
+library(mctest)
+
+
+set.seed(10)
+```
+
+
+# PART I - READING DATA, UNDERSTAND DATASET AND EXPLORATION DATA ANALYSIS (EDA)
+
+## READING DATASET
+```{r echo=TRUE}
+
+# Read the dataset and replacing blank values with NA
+dfH <- read.csv("HDHI Admission data.csv", header =  TRUE,na.strings=c("", "NA"))
+
+#Checking names in the dataset
+names(dfH)
+
+#Checking just to have some idea about the variables in the dataset
+head(dfH) 
+
+#Checking dimension
+dim(dfH) # we found 15757 rows and 56 columns
+
+```
+We see our dataset has total 15,757 rows and 56 columns.
+
+After analysing the dataset, we found duplicate admission entries that is MRD No. in our dataset with most of them amost identical information. Therefore, we have removed those duplicates as follows.
+
+```{r}
+# Remove duplicates based on MRD No which is the admission number
+dfH1=dfH[!duplicated(dfH$MRD.No.), ]
+dim(dfH1)
+#summary(dfH1)
+
+```
+
+After removing duplicate entries, we see our dataset now has 12,224 rows and 56 columns.
+
+## Visualizaiton of the dataset
+
+###     Creating a special dataset for plots
+
+```{r}
+
+data1xplots <- dfH1
+
+```
+
+
+Working with the original data before dropping columns for the analysis of categorical variables that may impact interpretation.
+
+```{r}
+
+# plotData <- data.frame(data1xplots)
+
+head (data1xplots)
+
+```
+
+```{r}
+library(reshape2)
+
+unique.dim <- sort(unique(data1xplots$SMOKING))
+count.smoking <- table(data1xplots$SMOKING)
+count.alcohol <- table(data1xplots$ALCOHOL)
+count.DM <- table(data1xplots$DM)
+count.HTN <- table(data1xplots$HTN)
+count.CAD <- table(data1xplots$CAD)
+count.priorCMP <- table(data1xplots$PRIOR.CMP)
+count.CKD <- table(data1xplots$CKD)
+
+
+
+dfcomb <- data.frame(unique.dim, count.smoking, count.alcohol, count.DM, count.HTN, count.CAD, count.priorCMP, count.CKD)
+
+head(dfcomb)
+
+
+
+```
+
+
+```{r}
+dfcomb2 = dfcomb[-2]
+dfcomb3 = dfcomb2[-3]
+dfcomb4 = dfcomb3[-4]
+dfcomb5 = dfcomb4[-5]
+dfcomb6 = dfcomb5[-6]
+dfcomb7 = dfcomb6[-7]
+dfcomb8 = dfcomb7[-8]
+
+# head(dfcomb8)
+names(dfcomb8) <- c("unique.dim", "Smoking", "Alcohol", "Diabetes", "Hyper", "Coronary", "CardioM", "CKidneyD")
+head(dfcomb8)
+
+```
+
+
+```{r}
+colours = c("red", "blue")
+barplot(as.matrix(dfcomb8[-1]), main = "Counts of heart Disease patients and corresponding diagnosis", ylab="Counts", xlab = "Categories", beside = TRUE, col = colours)
+
+box()
+
+legend ('topright', fill = colours, legend=c('N', 'Y'))
+```
+### Facing set2
+
+```{r}
+
+count.anaemia <- table(data1xplots$ANAEMIA)
+count.sangina <- table(data1xplots$STABLE.ANGINA)
+count.acs <- table(data1xplots$ACS)
+count.stemi <- table(data1xplots$STEMI)
+count.achestpain <- table(data1xplots$ATYPICAL.CHEST.PAIN)
+count.hfref <- table(data1xplots$HFREF)
+count.hfnef <- table(data1xplots$HFNEF)
+
+dfcombx <- data.frame(unique.dim, count.anaemia, count.sangina, count.acs, count.stemi, count.achestpain, count.hfref, count.hfnef)
+
+head(dfcombx)
+
+```
+
+
+```{r}
+
+dfcombx2 = dfcombx[-2]
+dfcombx3 = dfcombx2[-3]
+dfcombx4 = dfcombx3[-4]
+dfcombx5 = dfcombx4[-5]
+dfcombx6 = dfcombx5[-6]
+dfcombx7 = dfcombx6[-7]
+dfcombx8 = dfcombx7[-8]
+
+# head(dfcomb8)
+names(dfcombx8) <- c("unique.dim", "Anaemia", "SAngina", "A-Coro", "Myocard", "A-ChestP", "HFailure1", "HFailure2")
+head(dfcombx8)
+
+```
+
+
+```{r}
+colours = c("red", "blue")
+barplot(as.matrix(dfcombx8[-1]), main = "Counts of heart Disease patients and corresponding diagnosis", ylab="Counts", xlab = "Categories", beside = TRUE, col = colours)
+
+box()
+
+legend ('topright', fill = colours, legend=c('N', 'Y'))
+
+
+```
+
+
+
+## Set 3
+
+
+```{r}
+
+count.valvular <- table(data1xplots$VALVULAR)
+count.chb <- table(data1xplots$CHB)
+count.sss <- table(data1xplots$SSS)
+count.aki <- table(data1xplots$AKI)
+count.cvainfract <- table(data1xplots$CVA.INFRACT)
+count.cvableed <- table(data1xplots$CVA.BLEED)
+count.af <- table(data1xplots$AF)
+
+dfcomby <- data.frame(unique.dim, count.valvular, count.chb, count.sss, count.aki, count.cvainfract, count.cvableed, count.af)
+
+head(dfcomby)
+
+```
+
+
+```{r}
+
+dfcomby2 = dfcomby[-2]
+dfcomby3 = dfcomby2[-3]
+dfcomby4 = dfcomby3[-4]
+dfcomby5 = dfcomby4[-5]
+dfcomby6 = dfcomby5[-6]
+dfcomby7 = dfcomby6[-7]
+dfcomby8 = dfcomby7[-8]
+
+# head(dfcomb8)
+names(dfcomby8) <- c("unique.dim", "Valvular", "CHblock", "S-Sinus", "AKidney-I", "CvascI", "CvascB", "AFib")
+head(dfcomby8)
+
+```
+
+```{r}
+
+colours = c("red", "blue")
+barplot(as.matrix(dfcomby8[-1]), main = "Counts of heart Disease patients and corresponding diagnosis", ylab="Counts", xlab = "Categories", beside = TRUE, col = colours)
+
+box()
+
+legend ('topright', fill = colours, legend=c('N', 'Y'))
+
+```
+
+# Set 4
+
+```{r}
+
+count.vt <- table(data1xplots$VT)
+count.psvt <- table(data1xplots$PSVT)
+count.congenital <- table(data1xplots$CONGENITAL)
+count.uti <- table(data1xplots$UTI)
+count.ncs <- table(data1xplots$NEURO.CARDIOGENIC.SYNCOPE)
+count.orthostatic <- table(data1xplots$ORTHOSTATIC)
+count.iendocarditis <- table(data1xplots$INFECTIVE.ENDOCARDITIS)
+
+dfcombz <- data.frame(unique.dim, count.vt, count.psvt, count.congenital, count.uti, count.ncs, count.orthostatic, count.iendocarditis)
+
+head(dfcombz)
+
+
+```
+
+```{r}
+
+dfcombz2 = dfcombz[-2]
+dfcombz3 = dfcombz2[-3]
+dfcombz4 = dfcombz3[-4]
+dfcombz5 = dfcombz4[-5]
+dfcombz6 = dfcombz5[-6]
+dfcombz7 = dfcombz6[-7]
+dfcombz8 = dfcombz7[-8]
+
+# head(dfcomb8)
+names(dfcombz8) <- c("unique.dim", "Ventri-T", "PSVentri", "Congenital", "Uri-TI", "Neuro CS", "Ortho", "I Endo")
+head(dfcombz8)
+
+```
+
+```{r}
+
+
+colours = c("red", "blue")
+barplot(as.matrix(dfcombz8[-1]), main = "Counts of heart Disease patients and corresponding diagnosis", ylab="Counts", xlab = "Categories", beside = TRUE, col = colours)
+
+box()
+
+legend ('topright', fill = colours, legend=c('N', 'Y'))
+
+```
+
+
+# Set 5
+
+```{r}
+
+count.dvt <- table(data1xplots$DVT)
+count.cshock <- table(data1xplots$CARDIOGENIC.SHOCK)
+count.shock <- table(data1xplots$SHOCK)
+count.pulmonaryE <- table(data1xplots$PULMONARY.EMBOLISM)
+
+
+dfcombt <- data.frame(unique.dim,count.dvt, count.cshock, count.shock, count.pulmonaryE)
+
+head(dfcombt)
+
+```
+
+
+```{r}
+
+dfcombt2 = dfcombt[-2]
+dfcombt3 = dfcombt2[-3]
+dfcombt4 = dfcombt3[-4]
+dfcombt5 = dfcombt4[-5]
+
+# head(dfcomb8)
+names(dfcombt5) <- c("unique.dim", "DVThrombosis", "Cardio-Shock", "Shock", "P-Embolism")
+head(dfcombt5)
+
+
+```
+
+```{r}
+colours = c("red", "blue")
+barplot(as.matrix(dfcombt5[-1]), main = "Counts of heart Disease patients and corresponding diagnosis", ylab="Counts", xlab = "Categories", beside = TRUE, col = colours)
+
+box()
+
+legend ('topright', fill = colours, legend=c('N', 'Y'))
+
+
+```
+
+#Removing unwanted columns
+
+```{r}
+#Removing unwanted columns
+
+# "SNO","MRD.No.","D.O.A","D.O.D",
+### "AGE","GENDER","RURAL",>>>>>>>>>>>>>>>>>>>>>>>>>>>kept
+# "TYPE.OF.ADMISSION.EMERGENCY.OPD","month.year", "DURATION.OF.STAY",
+# "duration.of.intensive.unit.stay", "OUTCOME", 
+## "SMOKING","ALCOHOL","DM","HTN","CAD","PRIOR.CMP","CKD",>>>>>>>>>>>>>>>>>>kept     
+## "HB","TLC","PLATELETS","GLUCOSE","UREA","CREATININE",>>>>>>>>>>>>>>>>>>>>kept
+# "BNP", 
+## "RAISED.CARDIAC.ENZYMES",>>>>>>>>>>>>>>>>>>>>kept
+# "EF",>>>>>>>>>>>>>>>>>>>>>>>>>>>kept
+## "SEVERE.ANAEMIA",
+## "ANAEMIA",>>>>>>>>>>>>>>>>>>>>>>>>>>>kept
+# "STABLE.ANGINA", 
+## "ACS",>>>>>>>>>>>>>>>>>>>>>>>>>>>kept             
+##  "STEMI", >>>>>>>>>>>>>>>>>>>>>>>>>>>kept   
+# "ATYPICAL.CHEST.PAIN",
+## "HEART.FAILURE",>>>>>>>>>>>>>>>>>>>>>>>>>>>kept
+# "HFREF","HFNEF","VALVULAR","CHB","SSS",
+## "AKI",>>>>>>>>>>>>>>>>>>>>>>>>>>>kept
+# "CVA.INFRACT","CVA.BLEED","AF","VT","PSVT","CONGENITAL","UTI",
+# "NEURO.CARDIOGENIC.SYNCOPE","ORTHOSTATIC","INFECTIVE.ENDOCARDITIS",
+# "DVT","CARDIOGENIC.SHOCK","SHOCK","PULMONARY.EMBOLISM","CHEST.INFECTION"
+
+dfH1$SNO<-NULL
+dfH1$MRD.No<-NULL
+dfH1$D.O.A <-NULL
+dfH1$D.O.D  <-NULL
+
+#dfH1$TYPE.OF.ADMISSION.EMERGENCY.OPD <-NULL<<<<<sampling
+dfH1$month.year  <-NULL
+#dfH1$DURATION.OF.STAY  <-NULL <<<<<<< linear regression/sampling 
+dfH1$duration.of.intensive.unit.stay  <-NULL
+#dfH1$OUTCOME  <-NULL <<<<<<<<< mulitnomial
+
+dfH1$BNP <-NULL
+#dfH1$RAISED.CARDIAC.ENZYMES <-NULL
+
+# dfH1$SEVERE.ANAEMIA  <-NULL
+
+# dfH1$STABLE.ANGINA <-NULL
+
+# dfH1$STEMI <-NULL
+dfH1$ATYPICAL.CHEST.PAIN  <-NULL
+
+dfH1$HFREF  <-NULL
+dfH1$HFNEF  <-NULL
+dfH1$VALVULAR <-NULL
+dfH1$CHB  <-NULL
+dfH1$SSS  <-NULL
+
+dfH1$CVA.INFRACT  <-NULL
+dfH1$CVA.BLEED  <-NULL
+dfH1$AF<-NULL
+dfH1$VT <-NULL
+dfH1$PSVT<- NULL
+dfH1$CONGENITAL  <-NULL
+dfH1$UTI  <-NULL
+dfH1$NEURO.CARDIOGENIC.SYNCOPE  <-NULL
+dfH1$ORTHOSTATIC  <-NULL
+dfH1$INFECTIVE.ENDOCARDITIS  <-NULL
+dfH1$DVT  <-NULL
+dfH1$CARDIOGENIC.SHOCK <-NULL
+dfH1$SHOCK  <-NULL
+dfH1$PULMONARY.EMBOLISM  <-NULL
+dfH1$CHEST.INFECTION  <-NULL
+
+
+head(dfH1)
+names(dfH1)
+dim(dfH1)
+str(dfH1)
+```
+
+
+```{r}
+#Removing unwanted columns
+# dfH2 <- dfH1[ -c(1:4,8:12,26,29,31,34,36:40,42:56) ] # removing columns by index
+# 
+# head(dfH2)
+# names(dfH2)
+# dim(dfH2)
+# str(dfH2)
+```
+
+#removing all the rows with missing or NA values as we have found lots of missing values exists in our dataset.
+```{r}
+#removing all the rows with missing or NA values. 
+#data1=na.omit(dfH2)
+data1=na.omit(dfH1)
+summary(data1)
+dim(data1)
+
+
+```
+
+
+```{r}
+#Converting Character to numeric
+
+data1$GLUCOSE <- as.numeric(data1$GLUCOSE)
+data1$HB <- as.numeric(data1$HB)
+data1$EF <- as.numeric(data1$EF)
+data1$TLC <- as.numeric(data1$TLC)
+data1$PLATELETS <- as.numeric(data1$PLATELETS)
+data1$UREA <- as.numeric(data1$UREA)
+data1$CREATININE <- as.numeric(data1$CREATININE)
+data1$EF <- as.numeric(data1$EF)
+
+#Converting int to factor
+
+data1$HEART.FAILURE <- as.factor(data1$HEART.FAILURE)
+data1$AKI <- as.factor(data1$AKI)
+data1$ACS <- as.factor(data1$ACS)
+data1$CKD <- as.factor(data1$CKD)
+data1$SMOKING <- as.factor(data1$SMOKING)
+data1$ALCOHOL <- as.factor(data1$ALCOHOL)
+data1$DM <- as.factor(data1$DM)
+data1$PRIOR.CMP <- as.factor(data1$PRIOR.CMP)
+data1$HTN <- as.factor(data1$HTN)
+data1$CAD <- as.factor(data1$CAD)
+data1$ANAEMIA <- as.factor(data1$ANAEMIA)
+data1$RAISED.CARDIAC.ENZYMES <- as.factor(data1$RAISED.CARDIAC.ENZYMES)
+data1$STABLE.ANGINA <- as.factor(data1$STABLE.ANGINA)
+data1$STEMI <- as.factor(data1$STEMI)
+data1$TYPE.OF.ADMISSION.EMERGENCY.OPD<-as.factor(data1$TYPE.OF.ADMISSION.EMERGENCY.OPD)
+
+# data1$BNP <- as.numeric(data1$BNP)
+data1$OUTCOME <- as.factor(data1$OUTCOME)
+# data1$SEVERE.ANAEMIA <- as.factor(data1$SEVERE.ANAEMIA)
+# data1$ATYPICAL.CHEST.PAIN <- as.factor(data1$ATYPICAL.CHEST.PAIN)
+# data1$HFREF <- as.factor(data1$HFREF)
+# data1$HFNEF <- as.factor(data1$HFNEF)
+# data1$VALVULAR <- as.factor(data1$VALVULAR)
+# data1$CHB <- as.factor(data1$CHB)
+# data1$SSS <- as.factor(data1$SSS)
+# data1$CVA.INFRACT <- as.factor(data1$CVA.INFRACT)
+# data1$CVA.BLEED <- as.factor(data1$CVA.BLEED)
+# data1$AF <- as.factor(data1$AF)
+# data1$VT <- as.factor(data1$VT)
+# data1$PSVT <- as.factor(data1$PSVT)
+# data1$CONGENITAL <- as.factor(data1$CONGENITAL)
+# data1$UTI <- as.factor(data1$UTI)
+# data1$NEURO.CARDIOGENIC.SYNCOPE <- as.factor(data1$NEURO.CARDIOGENIC.SYNCOPE)
+# data1$ORTHOSTATIC <- as.factor(data1$ORTHOSTATIC)
+# data1$INFECTIVE.ENDOCARDITIS <- as.factor(data1$INFECTIVE.ENDOCARDITIS)
+# data1$DVT <- as.factor(data1$DVT)
+# data1$CARDIOGENIC.SHOCK <- as.factor(data1$CARDIOGENIC.SHOCK)
+# data1$SHOCK <- as.factor(data1$SHOCK)
+# data1$PULMONARY.EMBOLISM <- as.factor(data1$PULMONARY.EMBOLISM)
+# data1$CHEST.INFECTION <- as.factor(data1$CHEST.INFECTION)
+
+
+summary(data1)
+
+```
+
+
+# Changing ACS, AKI, Heart failure values from (0 , 1) to (N,Y)
+
+```{r}
+
+#Make variables into Factors
+# unique(data1$HEART.FAILURE)
+# unique(data1$ACS)
+# unique(data1$AKI)
+# 
+# # Changing the factor and checking the order
+# data1$HEART.FAILURE<-as.factor(data1$HEART.FAILURE)
+# data1$HEART.FAILURE<-factor(data1$HEART.FAILURE, levels=c("0","1"),
+#                      labels=c("N", "Y"))
+# 
+# 
+# data1$ACS<-as.factor(data1$ACS)
+# data1$ACS<-factor(data1$ACS, levels=c("0","1"),
+#                      labels=c("N", "Y"))
+# 
+# 
+# data1$AKI<-as.factor(data1$AKI)
+# data1$AKI<-factor(data1$AKI, levels=c("0","1"),
+#                      labels=c("N", "Y"))
+# 
+# 
+# table(data1$ACS)
+# table(data1$AKI)
+# table(data1$HEART.FAILURE)
+
+```
+
+
+
+```{r}
+
+# table(data1$GENDER)
+# unique(data1$GENDER)
+# 
+# table(data1$RURAL)
+# unique(data1$RURAL)
+# 
+# table(data1$HEART.FAILURE)
+# unique(data1$HEART.FAILURE)
+# 
+# table(data1$AKI)
+# unique(data1$AKI)
+# 
+# table(data1$ACS)
+# unique(data1$ACS)
+
+```
+
+
+```{r}
+# we found some empty string exists in few columns
+# So replacing empty string with NA 
+data1[data1=="EMPTY"]<-NA
+
+# and finally removing remaining NA values and named dataset as dataClean
+dataClean1=na.omit(data1)
+summary(dataClean1)
+dim(dataClean1)
+
+```
+
+``` {r echo=TRUE}
+# Loading the png file for better visualization quality for cleaned dataset 
+
+# d=head(dataClean1)
+# knitr::kable(df, caption='Heading of cleaned dataset', align="lrcrccccc")
+# knitr::include_graphics("heatmap.png")
+```
+
+
+## Observing some visualization of the dataset
+
+###Boxplots:
+```{r}
+
+
+boxplot(AGE ~ GENDER, dataClean1, col = "dark cyan",main="GENDER vs AGE")
+
+
+```
+
+### Barplots:
+
+
+```{r echo=TRUE}
+library(ggplot2)
+ggplot(data = dataClean1, aes(x = AGE))+
+  geom_bar(stat = "bin",fill = "purple")+theme_grey()
+
+
+
+ggplot(dataClean1, aes(x=GENDER))+
+  geom_bar(stat="count", fill="brown")+
+  theme_grey()
+
+
+ggplot(dataClean1, aes(x=RURAL))+
+  geom_bar(stat="count", fill="chocolate")+
+  theme_grey()
+
+
+```
+# Put your respective analysis group chunk below.
+
+
+```{r}
+# Just checking the cleanned dataset
+summary(dataClean1)
+
+names(dataClean1)
+```
+
+
+
+## PART II - SAMPLING
+
+#Applying SRS on the clean dataset with a sample size 1/3 of the population.
+
+```{r}
+set.seed(10)
+#taking the required sample with a sample size of 3000
+N=10125  #population size
+n=3000 #sample size
+idx=sample(1:N,size = n, replace = FALSE) #taking the sample 
+datasrs=dataClean1[idx,]
+names(datasrs)
+dim(datasrs)
+```
+
+Finding out the population average and standard deviation of the sample with Duration of Stay as variable of interest:
+
+```{r}
+library(survey)
+mydata<-data.frame(datasrs,pw=rep(N/n,n),fpc=rep(N,n))
+svy<-svydesign(id=~0, strata = NULL, weights=~pw, data = mydata, fpc=~fpc)
+dossrs<-svymean(~DURATION.OF.STAY, svy)
+dossrs
+
+```
+
+#####So the population average comes out to be $6.5097$ and standard deviation comes out to be $0.0695$ with a population size of 3000 and variable of interest as $"DURATION.OF.STAY"$.
+
+```{r}
+#finding out the confidence interval for the duration of stay 
+confiddos<-confint(dossrs,level = 0.95, df=degf(svy))
+confiddos
+```
+
+##Applying stratified sampling to compare the outcomes with SRS using the same sample size
+
+Using the same variable of interest as duration of stay and using type of admission as the stratum.
+
+Rechecking the individual count of type of admission that will be used as the strata.
+```{r}
+table(dataClean1$TYPE.OF.ADMISSION.EMERGENCY.OPD)
+```
+
+It is observed that 2/3 of the patients are emergency and 1/3 are outpatients.
+
+Using proportional allocation to find out the size of the sample for each stratum.
+
+```{r}
+N=10125  #population size
+n=3000 #sample size
+psize<-table(dataClean1$TYPE.OF.ADMISSION.EMERGENCY.OPD) 
+palloc<-n*psize/N #determining the proportional allocation for each stratum
+palloc
+```
+Rounding up number of sampled units in each stratum to the nearest integer.
+
+```{r}
+intpalloc<-round(palloc) #round up the stratum proportions to the nearest integer
+intpalloc
+sum(intpalloc)
+```
+Implementing SRS without replacement for type of admission with proportional allocation with n=3000 to create the sample.
+
+```{r}
+set.seed(10)
+library(sampling)
+idx1<-sampling:::strata(dataClean1,stratanames=c("TYPE.OF.ADMISSION.EMERGENCY.OPD"),size=c(2144,856), method="srswor")
+datastrat1<-getdata(dataClean1,idx1)
+table(datastrat1$TYPE.OF.ADMISSION.EMERGENCY.OPD)
+dim(datastrat1)
+```
+
+
+```{r}
+# Checking that no probabilities are 0
+sum(datastrat1$Prob<=0)
+
+#Calculating the sampling weights
+datastrat1$sampwt<-1/datastrat1$Prob
+
+# Checking that the sampling weights sum to the population sizes for each stratum
+tapply(datastrat1$sampwt,datastrat1$TYPE.OF.ADMISSION.EMERGENCY.OPD,sum)
+
+```
+
+```{r}
+#Applying stratified sampling with variable of interest as duration of stay and type of admission as stratum
+datastrat1=data.frame(datastrat1, pw=datastrat1$sampwt, fpc=c(rep(7236,2144),rep(2889,856)))
+svy1<-svydesign(id=~1,strata = ~TYPE.OF.ADMISSION.EMERGENCY.OPD, weights = ~pw, data = datastrat1, fpc=~fpc)
+dosstrat<-svymean(~DURATION.OF.STAY, svy1)
+dosstrat
+```
+
+```{r}
+boxplot(dataClean1$DURATION.OF.STAY~dataClean1$TYPE.OF.ADMISSION.EMERGENCY.OPD,main="Duration of stay VS ADMISSION TYPE",col="light blue")
+```
+
+
+```{r}
+#finding out the confidence interval 
+confiddos1<-confint(dosstrat,level = 0.95, df=degf(svy1))
+confiddos1
+
+
+```
+
+#####So the population average comes out to be $6.721$ and standard deviation comes out to be $0.0749$ which is higher than SRS.
+
+```{r}
+#Using Anova table for further comparison
+
+summary(aov(formula=DURATION.OF.STAY~TYPE.OF.ADMISSION.EMERGENCY.OPD, data = dataClean1))
+summary(aov(formula=DURATION.OF.STAY~TYPE.OF.ADMISSION.EMERGENCY.OPD, data = datastrat1))
+
+```
+
+# Both the p-value for SRS and stratified sampling comes out lower.However, the SSB is very low compared to SSW to stratified sampling is not a good fit for this model.
+
+```{r}
+#Comparing the sample mean and SE from SRS and stratified sampling with the population mean and SE
+popmean=sum((dataClean1$DURATION.OF.STAY)/N)
+popsd=sd(dataClean1$DURATION.OF.STAY)
+c(dossrs,dosstrat,popmean)
+```
+
+Rechecking the individual count of outcome that will be used as the strata.
+
+```{r}
+
+table(dataClean1$OUTCOME)
+```
+
+It is observed that 1/2 of the patients have been discharged normally and the remaining half are shared between expiry and forceful discharge.
+
+```{r}
+boxplot(dataClean1$DURATION.OF.STAY~dataClean1$OUTCOME,main="Duration of stay VS Outcome",col="light green")
+```
+
+Sorting the outcome in alphabetical order for simplification purpose:
+
+```{r}
+outsort<-dataClean1[order(dataClean1$OUTCOME),]
+unique(outsort$OUTCOME)
+```
+
+Using proportional allocation to find out the size of the sample for each stratum.
+
+```{r}
+N=10125  #population size
+n=3000 #sample size
+psize1<-table(outsort$OUTCOME) 
+palloc1<-n*psize1/N #determining the proportional allocation for each stratum
+palloc1
+```
+Rounding up number of sampled units in each stratum to the nearest integer.
+
+```{r}
+intpalloc1<-round(palloc1) #round up the stratum proportions to the nearest integer
+intpalloc1
+sum(intpalloc1)
+```
+Implementing SRS without replacement for each outcome with proportional allocation with n=3000 to create the sample.
+
+```{r}
+set.seed(10)
+library(sampling)
+idx2<-sampling:::strata(outsort,stratanames=c("OUTCOME"),size=c(132,2692,176), method="srswor")
+datastrat2<-getdata(outsort,idx2)
+table(datastrat2$OUTCOME)
+dim(datastrat2)
+```
+
+
+```{r}
+# Checking that no probabilities are 0
+sum(datastrat2$Prob<=0)
+
+#Calculating the sampling weights
+datastrat2$sampwt<-1/datastrat2$Prob
+
+# Checking that the sampling weights sum to the population sizes for each stratum
+tapply(datastrat2$sampwt,datastrat2$OUTCOME,sum)
+```
+
+
+```{r}
+#Applying stratified sampling with variable of interest as duration of stay and OUTCOME as stratum
+datastrat2=data.frame(datastrat2, pw=datastrat2$sampwt, fpc=c(rep(446,132),rep(9086,2692),rep(593,176)))
+svy2<-svydesign(id=~1,strata = ~OUTCOME, weights = ~pw, data = datastrat2, fpc=~fpc)
+dosstrat2<-svymean(~DURATION.OF.STAY, svy2)
+dosstrat2
+```
+
+
+```{r}
+#finding out the confidence interval 
+confiddos2<-confint(dosstrat2,level = 0.95, df=degf(svy1))
+confiddos2
+
+
+```
+#####So the population average comes out to be $6.4741$ and standard deviation comes out to be $0.0705$ which is higher than SRS.
+
+```{r}
+#Using Anova table for further comparison
+
+summary(aov(formula=DURATION.OF.STAY~OUTCOME, data = dataClean1))
+summary(aov(formula=DURATION.OF.STAY~OUTCOME, data = datastrat2))
+
+
+
+##Comparing the sample mean and SE from SRS and stratified sampling with the population mean and SE
+```
+# The p-value for both SRS and stratified sampling comes out lower. However, SSB is very low compared to SSW to stratified sampling is not a good fit for this model.
+
+```{r}
+popmean=sum((dataClean1$DURATION.OF.STAY)/N)
+popsd=sd(dataClean1$DURATION.OF.STAY)
+c(dossrs,dosstrat,popmean)
+```
+
+The overall conclusion that can be drawn from this section are the following:
+ 1. SRS is better than stratified sampling as the SSB from the anova table is negligible compared to the SSW for both auxilary variable.
+ 2. Both the sampling mean are close to the population mean
+ 3. Only quantitative variables could be used as the variable of interest and duration of stay providing the best option.
+
+```{r}
+#Dropping Type of Admission as it will not be needed for further analysis
+dataClean1$TYPE.OF.ADMISSION.EMERGENCY.OPD <-NULL
+dim(dataClean1)
+dataClean=dataClean1
+summary(dataClean)
+```
+
+
+## PART III _ CHECKING INDEPENDECE OF CATEGORICAL VARIABLES USING CONTIGENCE TABLE 
+
+```{r}
+library(fmsb)
+
+categoricalNames <-(c( "HEART.FAILURE",   "STEMI", "AKI",  "ACS", 
+                       "RAISED.CARDIAC.ENZYMES", "ANAEMIA", "PRIOR.CMP", 
+                       "CAD", "HTN", "DM", "ALCOHOL", "SMOKING", "CKD"))
+
+# Adding the categorical variables to check independence in a new dataframe
+dataClean_OnlyCategorical <- dataClean[, categoricalNames]
+namesCategorical <- names(dataClean_OnlyCategorical)
+
+# Just to Check if everything is inorder
+names(dataClean_OnlyCategorical)
+dim(dataClean_OnlyCategorical)
+
+#namesCategorical[1]
+
+
+# Number of pairs to carry out the tests
+numPairsCheck = length(namesCategorical)-1
+#print(numPairsCheck)
+
+
+# Creating matrix to store pvalue values
+pvalueMatrix = matrix(0, length(namesCategorical), length(namesCategorical))
+
+
+# Looping to quantify the p-value of Test Based on the differences (2x2 Contingency tables) for all the pairs
+for(i in seq(1:numPairsCheck)){
+  for(j in seq(i:numPairsCheck)){
+  
+    print(i)
+    print(j)
+  
+    # Taking the names of Categorical Variable to compare
+    name1 = namesCategorical[i]
+    name2 = namesCategorical[j+1]
+  
+    if(name1 != name2){
+      #print(name1)
+      #print(name2)
+    
+      #Creating a dataset with the two selected variables
+      dataTest<- dataClean_OnlyCategorical[, c(name1,  name2)]
+      tableTest <- table(dataTest)
+  
+      #print(tableTest)
+    
+      # Print Variables to check independence
+      print(c(name1, name2))
+  
+
+     #Test based on the risk difference
+      risk1 = riskdifference(tableTest[1,1], tableTest[2,1], tableTest[1,1]+
+                               tableTest[1,2],  tableTest[2,1]+tableTest[2,2],
+                             conf.level = 0.95)
+    
+      print(risk1$p.value)
+      
+      #Storing pvalue
+      pvalueMatrix[i,j+1] = risk1$p.value
+      pvalueMatrix[j+1,i] = risk1$p.value
+ 
+      if(risk1$p.value >= 0.05){ #Just to show the cases that are not independent at 5% level
+        print(c("The variables:", name1, name2, "are NOT independent !", "p-value = ", risk1$p.value))
+      }   
+
+    }
+
+  }
+  
+}
+
+# Adding names to the rows and columns of the matrix
+row.names(pvalueMatrix) <- categoricalNames
+colnames(pvalueMatrix) <- categoricalNames
+pvalueMatrix
+
+
+#Plotting Heatmap with p-values
+library(reshape)
+library(ggplot2)
+
+#Transfor Matrix
+df<-melt(pvalueMatrix)
+
+colnames(df)<-c("x","y", "pvalue")
+#head(df)
+
+#Plotting heatmap
+ggplot(df, aes(x = x, y = y, fill = pvalue))+
+  geom_tile(color = "black") +
+  scale_fill_gradient(low = "white", high = "red") +
+  geom_text(aes(label=round(pvalue,2)), color = "black", size = 4) +
+  theme(axis.text.x=element_text(angle=90))+
+  ggtitle("P-value indicated by TEST BASED ON THE DIFFERENCE")
+  coord_fixed()
+
+#Saving the heatmap in a file (better resolution)
+ggsave("heatmap.png", width = 16, height = 10)
+
+
+```
+
+
+``` {r echo=TRUE}
+# Loading the heatmap png file for better visualization quality
+
+knitr::kable(df, caption='CONTIGENCE TABLE', align="lrcrccccc")
+knitr::include_graphics("heatmap.png")
+```
+
+
+Based on the heatmap:
+
+1) For HEART.FAILURE, only HTN indicated that there is NOT association (p-value = 0.2 > 0.05) at 5$ level, the other ones are dependent and could take into account into the models. However, the other ones should be independent among them. So, we can collect from the Heat Map:
+1.1) STEMI - Only DM is independent
+1.2) AKI - only ALCOHOL is independent
+1.3) ACS - only HTN and DM are independent 
+1.4) RAISED CARDIAC ENZIMES - only PRIOR.CMP and SMOKING are independent
+1.5) ANAEMIA and CKD - all of them are dependent
+1.6) ALCOHOL - only AKI is independent
+1.7) SMOKING - only RAISED>CARDIAX.ENZIMES, PRIOR.CMP and DM are independent
+
+Based on this, there are different possibilities of combination of categorical variables for HEART.FAILURE modelling:
+a.	HEART.FAILURE in function of RAISED.CARDIAC.ENZYMES, PRIOR.CMP and SMOKING
+b.	HEART.FAILURE in function of RAISED.CARDIAC.ENZYMES and PRIOR.CMP
+c.	HEART.FAILURE in function of RAISED.CARDIAC.ENZYMES and SMOKING
+d.	HEART.FAILURE in function of PRIOR.CMP and SMOKING
+e.	HEART.FAILURE in function of STEMI and DM
+f.	HEART.FAILURE in function of AKI and ALCOHOL
+g.	HEART.FAILURE in function of ACS and DM
+
+
+
+2) For AKI, only ALCOHOL indicated that there is NOT association (p-value = 0.08 > 0.05) at 5$ level, the other ones are dependent and could take into account into the models. However, the other ones should be independent among them. For this reason and based on Heatmap, the possibilities of models are as following:
+2.1) HEART.FAILURE - Only HTN is independent
+2.2) STEMI - Only DM is independent
+2.3) ACS - Only HTN is independent
+2.4) RAISED CARDIAC ENZIMES - only PRIOR.CMP and ALCOHOL are independent
+2.5) ANAEMIA and CKD - all of them are dependent
+
+Based on this, there are different possibilities for AKI modelling:
+a.	AKI in function of STEMI and DM
+b.	AKI in function of ACS and DM
+c.	AKI in function of ACS and HTN
+d.	AKI in function of RAISED.CARDIAC.ENZYMES, PRIOR.CMP and SMOKING
+e.	AKI in function of RAISED.CARDIAC.ENZYME and, PRIOR.CMP
+f.	AKI in function of RAISED.CARDIAC.ENZYMES and SMOKING
+g.	AKI in function of PRIOR.CMP and SMOKING
+h.	AKI in function of HEART.FAILURE and HTN
+
+In summary, we could find by the test of independence by applying test based on the differences using 2x2 Table Contingency the dependent explanatory variables of our response variables, at the same time these explanatory variables being independent among them.    
+
+
+
+## PART IV - MODELLING AND PREDICTION
+
+## IV.1 - Categorical Response Variables (HEART.FAILURE and AKI)
+
+
+# IV.1.1 - HEART.FAILURE
+
+For HEart Failure, it was defined to use all the quantitative variables and the categorical variables and Gender (based on EDA) and RAISED.CARDIAC ENZYMES, PRIOR.CMP and SMOKING (one of the possibility of models obtained with independence analysis with Contingency Table)
+
+
+#(A) Evaluating HEART.FAILURE IN FUNCTION OF OTHER VARIABLES (only Quantitatives + GENDER + RAISED.CARDIAC ENZYMES + PRIOR.CMP + SMOKING)
+
+Sampling (75% train part, 25% test part)
+```{r echo=TRUE}
+# Set a seed for random number generation
+set.seed(10)
+
+#Considering stratified sampling to separate each 
+library(sampling)
+
+#Checking the order and total of each Gender
+unique(dataClean$HEART.FAILURE)
+table(dataClean$HEART.FAILUREs) # >>>>>>>>>>>>>>need to check the s
+
+# 75% with HEAT.FAILURE = 1 and 0
+n_HEART_Y = round(0.75*nrow(dataClean[dataClean$HEART.FAILURE == "1",]))
+n_HEART_N = round(0.75*nrow(dataClean[dataClean$HEART.FAILURE == "0",]))
+
+
+# srswor = Simple Random Sampling without replacement for each strata: 7% of Total for training
+idx<-sampling::strata(dataClean, stratanames = ("HEART.FAILURE"), size=c(n_HEART_Y,n_HEART_N), method="srswor")
+
+#idx_unit
+
+train=dataClean[idx$ID_unit,]
+
+# Checking if the stratified sample was done correctly in Train part
+table(train$HEART.FAILURE)
+
+# Creating the test part (25% of Total, other rows not selected from traininng part)
+test=dataClean[-idx$ID_unit,]
+
+table(test$HEART.FAILURE)
+
+contrasts(train$HEART.FAILURE)
+
+
+```
+The stratified sampling separated the total population as expected.
+
+
+#(A.1) LOGISTIC REGRESSION
+RAISED CARDIAC ENZIMES - only PRIOR.CMP and ALCOHOL
+```{r echo=TRUE}
+library(ISLR)
+
+#Creating the the logistic regression model based on train part 
+HEART_logistic<-glm(HEART.FAILURE~factor(GENDER)+AGE+GLUCOSE+HB+TLC+PLATELETS+UREA+CREATININE+EF+factor(RAISED.CARDIAC.ENZYMES)+factor(PRIOR.CMP)+ 
+                      factor(SMOKING),family=binomial, data=train)
+
+summary(HEART_logistic)
+
+```
+Except PLATELETS (p-value > 0.05), all the other variables are significant at 5% level.
+
+Checking the coefficient to see if there is some 0 at 95% Confidence Interval.
+
+```{r echo=TRUE}
+# Calculating the confidence interval on the coefficients
+confint(HEART_logistic, level = 0.95)
+```
+
+Only PLATELETS  with ZERO between UPPER and LOWER bounds of 95% Confidence Interval. Smoking indicated negative coefficient that indicates that this helps to reduce HEART.FAILURE that is not what is expected.  So they should be removed.
+
+Redoing Logistic Regression without PLATELETS and SMOKING.
+
+
+```{r echo=TRUE}
+
+# Calculating the confidence interval on the coefficients
+confint(HEART_logistic, level = 0.95)
+
+
+```
+
+
+
+Now, all the variables are significant at 5% level and without 0 in any coefficient at 95% Confidence Interval.
+ 
+Based on the coefficients, we can conclude that the probability of HEART.FAILURE:
+- decreases if the patient gender is male
+- decreases with HB, CREATININE and EF
+- increases with AGE, GLUCOSE, TLC and UREA;
+- increases if the patient has RAISED.CARDIAC.ENZYMES and PRIOR.CMP
+
+
+Checking if there is problem of Multicolinearity in the training set.
+
+```{r echo=TRUE}
+#Checking Multicollinearity
+library(car)
+
+vif(HEART_logistic)
+
+```
+
+It was detected moderate collinearity between CREATININE and UREA, but it was not severe (VIF < 5, based on DATA 603), for this reason we adopt to keep them.
+
+Applying Test part to the fitted logistic regression model
+```{r echo=TRUE}
+#Based on the model fitted based on the training data, predict the HEART.FAILURE (Y) based on test data
+Prob.predict_logistic<-predict(HEART_logistic,test,type="response")
+
+testSize = nrow(test)
+testSize
+
+HEART_FAILURE.predict=rep("0", testSize)
+
+HEART_FAILURE.predict[Prob.predict_logistic >= 0.5]="1"
+
+# Checking the HEART_FAILURE prediction of Y=1 and N = 0 in the test data
+table(HEART_FAILURE.predict)
+
+#Comparing what the tests responses with the actual
+actual=test$HEART.FAILURE
+tablePred=table(HEART_FAILURE.predict,actual)
+
+tablePred
+
+```
+1636 "N" were predicted correctly, whereas 437 were wrong. In terms of "Y", 290 were predicted correctly, whereas 168 were wrong. This considering p=0.5.
+```{r echo=TRUE}
+# Misclassification Ratio
+mis_ratio = (tablePred[1, 2]+tablePred[2, 1])/(nrow(test))
+mis_ratio 
+
+
+```
+The misclassification ratio is 0.230936 (23.1%), in other words, 76.9% were predicted correctly in the test part. This was obtained considering p=0.5.
+
+Checking the pairs.
+```{r}
+pairs(~HEART.FAILURE+factor(GENDER)+AGE+GLUCOSE+HB+TLC+CREATININE+UREA+EF+factor(RAISED.CARDIAC.ENZYMES)+factor(PRIOR.CMP), data=train)
+```
+Plotting only the most important variables (based on Classification Tree)
+```{r}
+#Generating plots with regions
+ggplot(data=train, aes(x=EF, y=UREA, color=HEART.FAILURE))+
+  geom_point(size=2, alpha=0.5)+
+  scale_color_manual(labels=c("No", "Yes"), values = c("#00BA38","red"))+
+  ggtitle("Heart Failure - UREA x EF")
+
+
+
+```
+Visualizing the probability plots for the main variables (UREA and EF) for different GENDER and assuming all the others as mean/median values.
+
+```{r}
+#Calculating Means of Explanatory variables
+#~HEART.FAILURE+factor(GENDER)+AGE+GLUCOSE+HB+TLC+CREATININE+UREA+EF+factor(RAISED.CARDIAC.ENZYMES)+factor(PRIOR.CMP)
+medianTrainAGE = median(train$AGE)
+medianTrainAGE
+
+meanTrainGLUCOSE = mean(train$GLUCOSE)
+meanTrainGLUCOSE
+
+meanTrainHB = mean(train$HB)
+meanTrainHB
+
+meanTrainTLC = mean(train$TLC)
+meanTrainTLC
+
+meanTrainCREATININE = mean(train$CREATININE)
+meanTrainCREATININE
+
+meanTrainUREA = mean(train$UREA)
+meanTrainUREA
+
+meanTrainEF = mean(train$EF)
+meanTrainEF
+
+medianTrainRAISED.CARDIAC.ENZYMES = median(as.integer(train$RAISED.CARDIAC.ENZYMES))
+medianTrainRAISED.CARDIAC.ENZYMES
+
+medianTrainPRIOR.CMP = median(as.integer(train$PRIOR.CMP))
+medianTrainPRIOR.CMP
+
+
+#Calculating probability of HEART FAILURE for each GENDER in function of UREAM and keeping the othe parameters as median or mean
+
+##### 1 - UREA
+n = 100
+pXvectorM=rep(0,n)
+pXvectorF=rep(0,n)
+valueV=rep(0,n)
+
+count = 0
+minV = min(train$UREA)
+maxV = max(train$UREA)
+
+for(i in seq(1:n+1)){
+  valueV[i] = minV+(maxV-minV)*count/n
+  
+  # MAN
+  genderV = 1
+  expV = exp(0.7838871-0.390573*genderV+0.0156926*medianTrainAGE+0.0012128*meanTrainGLUCOSE-0.0767528*meanTrainHB+
+               0.0142416*meanTrainTLC-0.0966244*meanTrainCREATININE+0.0067814*valueV[i]-0.0552717*meanTrainEF+
+               0.4306312*medianTrainRAISED.CARDIAC.ENZYMES+0.5882911*medianTrainPRIOR.CMP)
+  
+  pXvectorM[i]=expV/(1+expV)
+  
+  # FEMALE
+  genderV = 0
+  expV = exp(0.7838871-0.390573*genderV+0.0156926*medianTrainAGE+0.0012128*meanTrainGLUCOSE-0.0767528*meanTrainHB+
+               0.0142416*meanTrainTLC-0.0966244*meanTrainCREATININE+0.0067814*valueV[i]-0.0552717*meanTrainEF+
+               0.4306312*medianTrainRAISED.CARDIAC.ENZYMES+0.5882911*medianTrainPRIOR.CMP)
+  
+  pXvectorF[i]=expV/(1+expV)
+  
+  
+  count = count + 1
+}
+
+#pXvector
+
+
+dfPlot <-data.frame(valueV,pXvectorM, pXvectorF)
+
+#Generating UREA Probability plot
+ggplot(data=dfPlot, aes(x=valueV) ) + 
+  geom_line(aes(y=pXvectorM),colour="#00BA38", size = 2)+
+  geom_line(aes(y=pXvectorF),colour="red", size = 2)+
+  annotate("text", x= 200, y=0.8, label = "FEMALE", color="Red")+
+  annotate("text", x= 300, y=0.7, label = "MALE", color="#00BA38")+
+  geom_hline(yintercept=0.0, color="blue", size=2)+
+  geom_hline(yintercept=1, color="blue", size=2)+
+  ggtitle("Prob HEAT.FAILURE and X = UREA : All other variables as means")+
+  labs(x = "X = UREA", y = "Prob Heart Failure")
+
+  
+
+##### 2 - EF
+
+n = 100
+pXvectorM=rep(0,n)
+pXvectorF=rep(0,n)
+valueV=rep(0,n)
+
+count = 0
+minV = min(train$EF)
+maxV = max(train$EF)
+
+for(i in seq(1:n+1)){
+  valueV[i] = minV+(maxV-minV)*count/n
+  
+  # MAN
+  genderV = 1
+  expV = exp(0.7838871-0.390573*genderV+0.0156926*medianTrainAGE+0.0012128*meanTrainGLUCOSE-0.0767528*meanTrainHB+
+               0.0142416*meanTrainTLC-0.0966244*meanTrainCREATININE+0.0067814*meanTrainUREA-0.0552717*valueV[i]+
+               0.4306312*medianTrainRAISED.CARDIAC.ENZYMES+0.5882911*medianTrainPRIOR.CMP)
+  
+  pXvectorM[i]=expV/(1+expV)
+  
+  # FEMALE
+  genderV = 0
+  expV = exp(0.7838871-0.390573*genderV+0.0156926*medianTrainAGE+0.0012128*meanTrainGLUCOSE-0.0767528*meanTrainHB+
+               0.0142416*meanTrainTLC-0.0966244*meanTrainCREATININE+0.0067814*meanTrainUREA-0.0552717*valueV[i]+
+               0.4306312*medianTrainRAISED.CARDIAC.ENZYMES+0.5882911*medianTrainPRIOR.CMP)
+  
+  pXvectorF[i]=expV/(1+expV)
+  
+  
+  count = count + 1
+}
+
+#pXvector
+
+
+dfPlot <-data.frame(valueV,pXvectorM, pXvectorF)
+
+#Generating UREA Probability plot
+ggplot(data=dfPlot, aes(x=valueV) ) + 
+  geom_line(aes(y=pXvectorM),colour="#00BA38", size = 2)+
+  geom_line(aes(y=pXvectorF),colour="red", size = 2)+
+  annotate("text", x= 40, y=0.7, label = "FEMALE", color="Red")+
+  annotate("text", x= 30, y=0.5, label = "MALE", color="#00BA38")+
+  geom_hline(yintercept=0.0, color="blue", size=2)+
+  geom_hline(yintercept=1, color="blue", size=2)+
+  ggtitle("Prob HEAT.FAILURE and X = EF : All other variables as means")+
+  labs(x = "X = EF", y = "Prob Heart Failure")
+
+
+
+
+```
+Based on the first plot in terms of UREA, the probability of FEMALE to have HEART.FAILURE varies between approximately 80% and 30% for values between the minimum and maximum UREA (between 0 and 400, respectively) values indicated in Train set keeping all the other relavant parameters as mean/median values in the train part. For MALE, HEART.FAILURE varies between approximately 30% and 87%, respectively.
+
+For the second plot in terms of EF, the probability of FEMALE to have HEART.FAILURE varies between approximately 40% and 90% for values between the minimum and maximum EF (between 15 and 60, respectively) values indicated in Train set keeping all the other relavant parameters as mean/median values in the train part. For MALE, HEART.FAILURE varies between approximately 75 and 20%, respectively.
+
+
+
+
+#(A.2) LINEAR DISCIMINATION ANALYSIS (LDA)
+For LDA, it is assumed that the quantitative variables follows a normal distribution, so we should check if the selected ones (AGE, GLUCOSE, HB, TLC, CREATININE, UREA and EF) are normally distributed.
+
+```{r}
+# Checking if AGE is normally distributed by Kolmogorov-Smirnov Test
+variableTest <- train$AGE
+ks.test(train$AGE, "pnorm")
+
+# Checking Shapiro.test (only accepts 5000 values)
+shapiro.test(train$AGE[0:5000])
+
+
+#Define plot region
+par(mfrow=c(1,2))
+
+#Create histogram of the variable
+hist(train$AGE, main="Distribution - AGE")
+qqnorm(train$AGE, main="Distribution - AGE")
+qqline(train$AGE)
+
+
+```
+Based on p-value (< 0.05), we should REJECT null hypothesis and conclude AGE is not normally distributed. 
+
+```{r}
+# Checking if GLUCOSE is normally distributed by Kolmogorov-Smirnov Test
+variableTest <- train$GLUCOSE
+ks.test(variableTest, "pnorm")
+
+# Checking Shapiro.test (only accepts 5000 values)
+shapiro.test(train$GLUCOSE[0:5000])
+
+#Define plot region
+par(mfrow=c(1,2))
+
+#Create histogram of the variable
+hist(train$GLUCOSE, main="Distribution - GLUCOSE")
+qqnorm(train$GLUCOSE, main="Distribution - GLUCOSE")
+qqline(train$GLUCOSE)
+
+
+```
+Based on p-value (< 0.05), we should REJECT null hypothesis and conclude GLUCOSE is not normally distributed. 
+
+```{r}
+# Checking if HB is normally distributed by Kolmogorov-Smirnov Test
+variableTest <- train$HB
+ks.test(variableTest, "pnorm")
+
+# Checking Shapiro.test (only accepts 5000 values)
+shapiro.test(train$HB[0:5000])
+
+#Define plot region
+par(mfrow=c(1,2))
+
+#Create histogram of the variable
+hist(train$HB, main="Distribution - HB")
+qqnorm(train$HB, main="Distribution - HB")
+qqline(train$HB)
+
+```
+Based on p-value (< 0.05), we should REJECT null hypothesis and conclude HB is not normally distributed.
+
+```{r}
+# Checking if TLC is normally distributed by Kolmogorov-Smirnov Test
+variableTest <- train$TLC
+ks.test(variableTest, "pnorm")
+
+#Define plot region
+par(mfrow=c(1,2))
+
+#Create histogram of the variable
+hist(train$TLC, main="Distribution - TLC")
+qqnorm(train$TLC, main="Distribution - TLC")
+qqline(train$TLC)
+
+```
+Based on p-value (< 0.05), we should REJECT null hypothesis and conclude TLC is not normally distributed.
+
+```{r}
+# Checking if CREATININE is normally distributed by Kolmogorov-Smirnov Test
+variableTest <- train$CREATININE
+ks.test(variableTest, "pnorm")
+
+#Define plot region
+par(mfrow=c(1,2))
+
+#Create histogram of the variable
+hist(train$CREATININE, main="Distribution -CREATININE")
+qqnorm(train$CREATININE, main="Distribution - CREATININE")
+qqline(train$CREATININE)
+
+```
+Based on p-value (< 0.05), we should REJECT null hypothesis and conclude CREATININE is not normally distributed.
+
+```{r}
+# Checking if UREA is normally distributed by Kolmogorov-Smirnov Test
+variableTest <- train$UREA
+ks.test(variableTest, "pnorm")
+
+#Define plot region
+par(mfrow=c(1,2))
+
+#Create histogram of the variable
+hist(train$UREA, main="Distribution -UREA")
+qqnorm(train$UREA, main="Distribution - UREA")
+qqline(train$UREA)
+
+```
+Based on p-value (< 0.05), we should REJECT null hypothesis and conclude UREA is not normally distributed.
+
+```{r}
+# Checking if EF is normally distributed by Kolmogorov-Smirnov Test
+variableTest <- train$EF
+ks.test(variableTest, "pnorm")
+
+#Define plot region
+par(mfrow=c(1,2))
+
+#Create histogram of the variable
+hist(train$EF, main="Distribution EF")
+qqnorm(train$EF, main="Distribution - EF")
+qqline(train$EF)
+
+```
+Based on p-value (< 0.05), we should REJECT null hypothesis and conclude UREA is not normally distributed.
+
+As it is required by LDA to have normality, we must not take into account none of the quantitative variables because the Kolmogorov-Smirnov test indicated that they are not normally distributed.
+
+```{r echo=TRUE}
+library(MASS)
+
+#Creating the LDA model based on training part without CREATININE
+HEART_lda.fit<-lda(HEART.FAILURE~factor(GENDER)+factor(RAISED.CARDIAC.ENZYMES)+
+                     factor(PRIOR.CMP), data = train)
+
+HEART_lda.fit
+
+
+```
+The The prior probabilities are as expected when it was created the train part.The LDA output indicates that our prior probabilities are 0.7127996 and 0.2872004 or in other words, 71.3% of the training observations are patients who are not having HEART FAILURE and 28.7 % represent those that are having HEART FAILURE. It also provides the group means.
+
+```{r echo=TRUE}
+#Plotting visualize how are the distribution of "Y" and "N"
+plot(HEART_lda.fit)
+```
+
+```{r echo=TRUE}
+#Checking the prediction based on test part
+HEART.pred<-predict(HEART_lda.fit,test)
+
+#diabetes.pred
+names(HEART.pred)
+
+#Plotting pairwise plot of the training set
+#pairs(train)
+
+# Checking the confusion table (Predicted versus real value in test part)
+tablePred=table(HEART.pred$class, test$HEART.FAILURE)
+
+tablePred
+
+```
+1653 "N" were predicted correctly, whereas 493 were wrong. In terms of "Y", 234 were predicted correctly, whereas 151 were wrong.. This was obtained assuming P(Y=pos|X1,…,Xp)≥0.5.
+
+```{r echo=TRUE}
+# Misclassification Ratio
+mis_ratio = (tablePred[1, 2]+tablePred[2, 1])/(nrow(test))
+mis_ratio 
+
+
+```
+The misclassification ratio is 0.25444449 (25.4%), in other words, 74.6% were predicted correctly the test part. This was obtained assuming P(Y=pos|X1,…,Xp)≥0.5.
+
+
+#(A.3) QUADRATIC DISCRIMINATION ANALYSIS
+As QDA i not stric in terms of Normality, we added the quantitative variables for building the model.
+
+```{r echo=TRUE}
+# Creating the QDA model based on Train part (without CREATININE)
+HEART_qda.fit<-qda(HEART.FAILURE~factor(GENDER)+AGE+GLUCOSE+HB+TLC+CREATININE+UREA+
+                     EF+factor(RAISED.CARDIAC.ENZYMES)+factor(PRIOR.CMP), data = train)
+
+HEART_qda.fit
+```
+
+```{r echo=TRUE}
+# Applying the model to the test data to predict the response variable
+HEART.pred<-predict(HEART_qda.fit, test)$class
+
+tablePred=table(HEART.pred, test$HEART.FAILURE)
+
+tablePred
+```
+1546 "N" were predicted correctly, whereas 402 were wrong. In terms of "Y",325 were predicted correctly, whereas 258 were wrong.. This was obtained assuming P(Y=pos|X1,…,Xp)≥0.5.
+
+```{r echo=TRUE}
+# Misclassification Ratio
+mis_ratio = (tablePred[1, 2]+tablePred[2, 1])/(nrow(test))
+mis_ratio 
+
+
+```
+The misclassification ratio is 0.2607665 (26.1), in other words, 73.9% were predicted correctly the test part. This was obtained assuming P(Y=pos|X1,…,Xp)≥0.5.
+
+Checking the error of some pair parameters (with only some explanatory variablesseeing that shows the folowing messagewitheverything: Error in plot.new() : figure margins too large).
+
+```{r echo=TRUE}
+library(klaR)
+partimat(HEART.FAILURE~factor(GENDER)+AGE+GLUCOSE+HB+TLC, data=train, method="qda")
+```
+
+
+
+#(A.4) CLASSIFICATION TREE
+
+```{r echo=TRUE}
+library(tree)
+
+# Doing the Classification Tree
+HEART_tree.fit<-tree(HEART.FAILURE~factor(GENDER)+AGE+GLUCOSE+HB+TLC+CREATININE+
+                       UREA+EF+factor(RAISED.CARDIAC.ENZYMES)+factor(PRIOR.CMP), train)
+
+
+summary(HEART_tree.fit)
+```
+
+```{r echo=TRUE}
+
+#Plotting the tree
+plot(HEART_tree.fit)
+text(HEART_tree.fit ,pretty =0)
+```
+The tree only has 4 terminal nodes, with only 2 class (EF and UREA) as splitting rules. In addition, it is possible to see on the right side (EF > 37.5), if an observation falls there, it will always indicated NO heart failure.
+
+Let us check the probability in each terminal node.
+```{r}
+# Check the nodes of the tree
+HEART_tree.fit
+```
+It is indicated that the probability of "Y" on the right side of the tree is significant smaller than "N", mainly in case of UREA < 34.5. For the left side, it is not too different the probabilities, and consequently it is possible the majority of wrong predictions happen there.
+
+The plot below, we can visualize the tree regions with the train points there.
+
+```{r}
+#Generating plots with regions
+ggplot(data=train, aes(x=EF, y=UREA, color=HEART.FAILURE))+
+  geom_point(size=2, alpha=0.5)+
+  scale_color_manual(labels=c("No", "Yes"), values = c("#00BA38","red"))+
+  geom_vline(xintercept=35.5, color="blue", size=2)+
+  geom_vline(xintercept=31.5, color="blue", size=2)+
+  geom_segment(aes(x=35.5,y=37.5, xend=62,yend=37.5), color="blue", size=2)+
+  ggtitle("Classification Tree Regions for Heart Failure - UREA x EF")
+
+
+
+```
+
+Apply the tree to the test set, calculate the root square of the mean squared error (RMSE)
+```{r echo=TRUE}
+# Set a seed for random number generation
+set.seed(10)
+
+# Applying the unpruned tree to test part
+HEART_tree.pred<-predict(HEART_tree.fit,test,type = "class")
+tablePred=table(HEART_tree.pred,test$HEART.FAILURE)
+
+tablePred
+
+
+```
+1605 "N" were predicted correctly, whereas 421 were wrong. In terms of "Y", 306 were predicted correctly, whereas 199 were wrong.
+
+```{r echo=TRUE}
+# Misclassification Ratio
+mis_ratio = (tablePred[1, 2]+tablePred[2, 1])/(nrow(test))
+mis_ratio 
+
+
+
+```
+The misclassification ratio is 0.2449625 (24.5%), in other words, 76.5% were predicted correctly the test part.
+
+
+It was not necessary to prune the tree seeing that just few terminal nodes were provided.
+
+
+#(A.5) LOGISTIC REGRESSION  with stratified 10-fold cross-validation
+
+Randomly dividing the total clean observations in folds with approximatelly equal size as well as proportion of Heart Failure of "Y" and "N".
+```{r echo=TRUE}
+library(caret)
+
+# Set a seed for random number generation
+set.seed(10)
+
+# Creating 10 folds
+folds<-createFolds(as.factor(dataClean$HEART.FAILURE), k=10)
+
+#Checking the units in each fold
+fold01<-dataClean[folds$Fold01,]
+fold02<-dataClean[folds$Fold02,]
+fold03<-dataClean[folds$Fold03,]
+fold04<-dataClean[folds$Fold04,]
+fold05<-dataClean[folds$Fold05,]
+fold06<-dataClean[folds$Fold06,]
+fold07<-dataClean[folds$Fold07,]
+fold08<-dataClean[folds$Fold08,]
+fold09<-dataClean[folds$Fold09,]
+fold10<-dataClean[folds$Fold10,]
+table(fold01$HEART.FAILURE)
+table(fold02$HEART.FAILURE)
+table(fold03$HEART.FAILURE)
+table(fold04$HEART.FAILURE)
+table(fold05$HEART.FAILURE)
+table(fold06$HEART.FAILURE)
+table(fold07$HEART.FAILURE)
+table(fold08$HEART.FAILURE)
+table(fold09$HEART.FAILURE)
+table(fold10$HEART.FAILURE)
+
+#folds
+
+
+
+```
+It is possible to verify that HEART.FAILURE responses were approximately equally distributed.
+
+
+```{r echo=TRUE}
+# Creating function to calculate misclassification rate for Logistic Regression
+library(MASS)
+
+misclassification_LOGISTIC<-function(idx){
+  # Select the other folders to training part
+  trainFold<-dataClean[-idx,]
+  
+  # The current fold as the validation (test) part
+  validationFold<-dataClean[idx,]
+  
+  #Fit the Logistic Regression model for the training Fold part
+  fit_LOGISTICmodel<-glm(HEART.FAILURE~factor(GENDER)+AGE+GLUCOSE+HB+TLC+CREATININE+
+                           UREA+EF+factor(RAISED.CARDIAC.ENZYMES)+factor(PRIOR.CMP),
+                         family=binomial, data=trainFold)
+  
+  
+  # Applying the validation part to the fitted model and predict the HEART FAILURE
+  pred<-predict(fit_LOGISTICmodel,validationFold)
+  
+  HEART_FAILURE.predict=rep("0", nrow(validationFold))
+
+  HEART_FAILURE.predict[pred >= 0.5]="1"
+
+  
+  #return the mean error of the prediction for the idx fold
+  return(1-mean(HEART_FAILURE.predict==validationFold$HEART.FAILURE))
+}
+```
+
+
+```{r echo=TRUE}
+# Set a seed for random number generation
+set.seed(10)
+
+# calculating the misclassification rate of each fold - Logistic Regression
+mis_rate_Logistic=lapply(folds, misclassification_LOGISTIC)
+
+# calculating the misclassification rate for each fold
+#mis_rate_LOGISTIC
+
+# Calculating the average misclassification rate
+mean(as.numeric(mis_rate_Logistic))
+
+```
+For Logistic Regression stratified with 10-folds, the misclassification rate is 0.256885 (25.7%).
+
+
+#(A.6) LDA with stratified 10-fold cross-validation
+For LDA whch assumes normality of explanatory variables, based on previous analysis with Kolmogorov-Smirnov test, we could see that none of quantitative variables are normally distributed, and consequently we need to remove them.
+
+```{r echo=TRUE}
+# Creating function to calculate misclassification rate for LDA
+library(MASS)
+
+misclassification_LDA<-function(idx){
+  # Select the other folders to training part
+  trainFold<-dataClean[-idx,]
+  
+  # The current fold as the validation (test) part
+  validationFold<-dataClean[idx,]
+  
+  #Fit the LDA model for the training Fold part
+  fit_LDAmodel<-lda(HEART.FAILURE~factor(GENDER)+factor(RAISED.CARDIAC.ENZYMES)+
+                      factor(PRIOR.CMP), data=trainFold)
+  
+  # Applying the validation part to the fitted model and predict the Type
+  pred<-predict(fit_LDAmodel,validationFold)
+  
+  #return the mean error of the prediction for the idx fold
+  return(1-mean(pred$class==validationFold$HEART.FAILURE))
+}
+
+```
+
+
+```{r echo=TRUE}
+# Set a seed for random number generation
+set.seed(10)
+
+# calculating the misclassification rate of each fold - LDA 
+mis_rate_LDA=lapply(folds, misclassification_LDA)
+
+# calculating the misclassification rate for each fold
+#mis_rate_LDA
+
+# Calculating the average misclassification rate
+mean(as.numeric(mis_rate_LDA))
+
+```
+For LDA stratified with 10-folds, the misclassification rate is 0.2527416 (25.3%).
+
+
+#(A.7) QDA with stratified 10-fold cross-validation
+```{r echo=TRUE}
+# Creating function to calculate misclassification rate for QDA
+library(MASS)
+
+misclassification_LDA<-function(idx){
+  # Select the other folders to training part
+  trainFold<-dataClean[-idx,]
+  
+  # The current fold as the validation (test) part
+  validationFold<-dataClean[idx,]
+  
+  #Fit the QDA model for the training Fold part
+  fit_QDAmodel<-qda(HEART.FAILURE~factor(GENDER)+AGE+GLUCOSE+HB+TLC+CREATININE+
+                      UREA+EF+factor(RAISED.CARDIAC.ENZYMES)+factor(PRIOR.CMP),
+                    data=trainFold)
+  
+  # Applying the validation part to the fitted model and predict the Type
+  pred<-predict(fit_QDAmodel,validationFold)
+  
+  #return the mean error of the prediction for the idx fold
+  return(1-mean(pred$class==validationFold$HEART.FAILURE))
+}
+
+```
+
+
+```{r echo=TRUE}
+# Set a seed for random number generation
+set.seed(10)
+
+# calculating the misclassification rate of each fold - QDA
+mis_rate_QDA=lapply(folds, misclassification_LDA)
+
+# calculating the misclassification rate for each fold
+#mis_rate_QDA
+
+# Calculating the average misclassification rate
+mean(as.numeric(mis_rate_QDA))
+
+```
+For QDA stratified with 10-folds, the misclassification rate is 0.257284 (25.7%).
+
+
+#(A.8) Classification Tree with stratified 10-fold cross-validation
+
+```{r echo=TRUE}
+# Creating function to calculate misclassification rate for Classification Tree
+library(tree)
+
+misclassification_TREE<-function(idx){
+  # Select the other folders to training part
+  trainFold<-dataClean[-idx,]
+  
+  # The current fold as the validation (test) part
+  validationFold<-dataClean[idx,]
+  
+  #Fit the Tree model for the training Fold part
+  fit_TREEmodel<-tree(HEART.FAILURE~factor(GENDER)+AGE+GLUCOSE+HB+TLC+CREATININE+
+                        UREA+EF+factor(RAISED.CARDIAC.ENZYMES)+factor(PRIOR.CMP),
+                      data=trainFold)
+  
+  # Applying the validation part to the fitted model and predict the Type
+  pred<-predict(fit_TREEmodel,validationFold, type = "class")
+  
+  
+  #return the mean error of the prediction for the idx fold
+  return(1-mean(pred==validationFold$HEART.FAILURE))
+}
+
+
+```
+
+
+```{r echo=TRUE}
+# Set a seed for random number generation
+set.seed(10)
+
+# calculating the misclassification rate of each fold - Classification Tree
+mis_rate_ClassificationTREE=lapply(folds, misclassification_TREE)
+
+# calculating the misclassification rate for each fold
+#mis_rate_ClassificationTREE
+
+# Calculating the average misclassification rate
+mean(as.numeric(mis_rate_ClassificationTREE))
+
+
+```
+For Classification tree considering stratified with 10-folds, the misclassification rate is 0.2635064 (26.4%).
+
+
+#(A.9) LOGISTIC REGRESSION only with relevant variables (UREA and EF) indicated by CLASSIFICATION TREE (Professor's suggestion)
+
+```{r echo=TRUE}
+
+#Creating the the logistic regression model based on train part 
+HEART_logistic<-glm(HEART.FAILURE~UREA+EF, family=binomial, data=train)
+
+summary(HEART_logistic)
+
+```
+Applying Test part to the fitted logistic regression model
+```{r echo=TRUE}
+#Based on the model fitted based on the training data, predict the HEART.FAILURE (Y) based on test data
+Prob.predict_logistic<-predict(HEART_logistic,test,type="response")
+
+testSize = nrow(test)
+testSize
+
+HEART_FAILURE.predict=rep("0", testSize)
+
+HEART_FAILURE.predict[Prob.predict_logistic >= 0.5]="1"
+
+# Checking the HEART_FAILURE prediction of Y=1 and N = 0 in the test data
+table(HEART_FAILURE.predict)
+
+#Comparing what the tests responses with the actual
+actual=test$HEART.FAILURE
+tablePred=table(HEART_FAILURE.predict,actual)
+
+tablePred
+
+```
+1675 "N" were predicted correctly, whereas 490 were wrong. In terms of "Y", 237 were predicted correctly, whereas 129 were wrong. This considering p=0.5.
+```{r echo=TRUE}
+# Misclassification Ratio
+mis_ratio = (tablePred[1, 2]+tablePred[2, 1])/(nrow(test))
+mis_ratio 
+
+
+```
+The misclassification ratio is 0.2445674 (24.5%), in other words, 75.5% were predicted correctly in the test part. This was obtained considering p=0.5.
+
+Considering Cross-validation
+```{r echo=TRUE}
+# Creating function to calculate misclassification rate for Logistic Regression
+library(MASS)
+
+misclassification_LOGISTIC<-function(idx){
+  # Select the other folders to training part
+  trainFold<-dataClean[-idx,]
+  
+  # The current fold as the validation (test) part
+  validationFold<-dataClean[idx,]
+  
+  #Fit the Logistic Regression model for the training Fold part
+  fit_LOGISTICmodel<-glm(HEART.FAILURE~UREA+EF, family=binomial, data=trainFold)
+  
+  
+  # Applying the validation part to the fitted model and predict the HEART FAILURE
+  pred<-predict(fit_LOGISTICmodel,validationFold)
+  
+  HEART_FAILURE.predict=rep("0", nrow(validationFold))
+
+  HEART_FAILURE.predict[pred >= 0.5]="1"
+
+  
+  #return the mean error of the prediction for the idx fold
+  return(1-mean(HEART_FAILURE.predict==validationFold$HEART.FAILURE))
+}
+```
+
+```{r echo=TRUE}
+# Set a seed for random number generation
+set.seed(10)
+
+# calculating the misclassification rate of each fold - Logistic Regression
+mis_rate_Logistic=lapply(folds, misclassification_LOGISTIC)
+
+# calculating the misclassification rate for each fold
+#mis_rate_LOGISTIC
+
+# Calculating the average misclassification rate
+mean(as.numeric(mis_rate_Logistic))
+
+```
+
+The misclassification rate is 0.2662715 (26.2715%) considering Logistic Regression with only the variables indicated by Classification Tree, in other words, 73.6% were predicted correctly in the test part. This was obtained considering p=0.5.
+
+
+#(A.10) SUMMARY oF HEART.FAILURE MODELS
+
+The HEART.FAILURE models with the relevant explanatory variables are GENDER, AGE, HB, TLC, CREATININE, UREA, EF, RAISED.CARDIACENZYMES and PRIOR.CMP (Except LDAs, that just qualitative variables were taken into account due to no normality of the quantivative variables) presented the following misclassification rates for different statistical learning methods and using or not k-flod cross validation:
+
+1) 75% Train part and 25% Prediction Part (no k-Fold Cross-Validation) 
+LOGISTIC REGRESSION: Misclassification Rate = 23.9%
+LDA: Misclassification Rate = 25.4%
+QDA: Misclassification Rate = 26.1%
+Classifiation Tree: Misclassification Rate = 24.5%
+LOGISTIC REGRESSION with only UREA and EF: Misclassification Rate = 24.5%
+
+
+1) 10--Fold Cross-Validation
+LOGISTIC REGRESSION: Misclassification Rate = 25.7%
+LDA: Misclassification Rate = 25.3%
+QDA: Misclassification Rate = 25.7%
+Classifiation Tree: Misclassification Rate = 26.4%
+LOGISTIC REGRESSION with only UREA and EF: Misclassification Rate = 26.6%
+
+
+Based on the results above, LOGISTIC REGRESSION without Cross Validation that indicated the best performance (misclassification rate of 23.9%). However, the performance of others models were not too different. It is interesting to see the most relevant explanatory variables to take into account are EF and UREA, but considering also GENDER, AGE, HB, TLC, CREATININE, RAISED.CARDIACENZYMES and PRIOR.CMP can improve some models,mainly Logistic Regression.
+
+
+
+
+# IV.1.2 - AKI
+
+For AKI, it was defined to use all the quantitative variables and the categorical variables and Gender (based on EDA) and RAISED.CARDIAC ENZYMES, PRIOR.CMP,(one of the possibility of models obtained with independence analysis with Contingency Table). And another set will be using STEMI, DM with Gender. 
+
+ 
+
+#Evaluating "AKI" IN FUNCTION OF OTHER VARIABLES (only Quantitatives + GENDER + STEMI and DM)
+
+Sampling (75% train_AKI part, 25% test_AKI part)
+```{r echo=TRUE}
+# Set a seed for random number generation
+set.seed(10)
+
+#Considering stratified sampling to separate each 
+library(sampling)
+
+#Checking the order and total of each Gender
+unique(dataClean$AKI)
+table(dataClean$AKI) #>>>>>>>> s
+
+# 75% with AKI = 1 and 0
+n_AKI_Y = round(0.75*nrow(dataClean[dataClean$AKI == "1",]))
+n_AKI_N = round(0.75*nrow(dataClean[dataClean$AKI == "0",]))
+
+
+# srswor = Simple Random Sampling without replacement for each strata: 7% of Total for train_AKIing
+idx_AKI<-sampling::strata(dataClean, stratanames = ("AKI"), size=c(n_AKI_N,n_AKI_Y), method="srswor")
+head(idx_AKI)
+tail(idx_AKI)
+
+train_AKI=dataClean[idx_AKI$ID_unit,]
+
+# Checking if the stratified sample was done correctly in train_AKI part
+table(train_AKI$AKI)
+
+# Creating the test_AKI part (25% of Total, other rows not selected from train_AKIinng part)
+test_AKI=dataClean[-idx_AKI$ID_unit,]
+
+table(test_AKI$AKI)
+
+
+```
+The stratified sampling separated the total population as expected.
+
+
+#(B.1) LOGISTIC REGRESSION
+STEMI and DM
+```{r echo=TRUE}
+library(ISLR)
+
+#Creating the the logistic regression model based on train_AKI part 
+AKI_logistic<-glm(AKI~factor(GENDER)+AGE+GLUCOSE+HB+TLC+PLATELETS+UREA+CREATININE
+                  +EF+factor(STEMI)+factor(DM),family=binomial, data=train_AKI)
+
+summary(AKI_logistic)
+
+```
+Except CREATININE, GLUCOSE and DM (p-value < 0.05), all the other variables are not significant at 5% level due to (p-value > 0.05).
+
+Checking the coefficient to see if there is some 0 at 95% Confidence Interval.
+
+```{r echo=TRUE}
+# Calculating the confidence interval on the coefficients
+confint(AKI_logistic, level = 0.95)
+```
+
+Except GLUCOSE, CREATININE and DM, all other variables with ZERO between UPPER and LOWER bounds of 95% Confidence Interval. So they should be removed.
+
+Redoing Logistic Regression with only GLUCOSE, CREATININE and DM.
+
+```{r echo=TRUE}
+
+#Creating the the logistic regression model based on train_AKI part 
+
+AKI_logistic<-glm(AKI~CREATININE+GLUCOSE+factor(DM), family=binomial, data=train_AKI)
+summary(AKI_logistic)
+
+```
+
+
+```{r echo=TRUE}
+# Calculating the confidence interval on the coefficients
+confint(AKI_logistic, level = 0.95)
+```
+We see, Creatinine, DM, glucose variables are significant and without 0 in any coefficient at 95% Confidence Interval
+
+
+Checking if there is problem of Multicolinearity in the training set.
+
+```{r echo=TRUE}
+#Checking Multicollinearity
+library(car)
+
+vif(AKI_logistic)
+
+```
+It was detected no collinearity (or very very mild) between CREATININE, GLUCOSE and DM as VIF values are less than 2, So we are keeping them.
+
+Applying test_AKI part to the fitted logistic regression model
+```{r echo=TRUE}
+#Based on the model fitted based on the train_AKIing data, predict the AKI (Y) based on test_AKI data
+Prob.predict_logistic_AKI<-predict(AKI_logistic,test_AKI,type="response")
+
+testSize_AKI = nrow(test_AKI)
+testSize_AKI
+
+AKI.predict=rep("0", testSize_AKI)
+
+AKI.predict[Prob.predict_logistic_AKI >= 0.5]="1"
+
+# Checking the HEART_FAILURE prediction of Y=1 and N = 0 in the test_AKI data
+table(AKI.predict)
+
+#Comparing what the test_AKI responses with the actual
+actual_AKI=test_AKI$AKI
+tablePred_AKI=table(AKI.predict,actual_AKI)
+
+tablePred_AKI
+
+```
+
+Considering p=0.5, we see that, 1973 "0" were predicted correctly, whereas 4 were wrong. In terms of "1", 532 were predicted correctly, whereas 22 were wrong. 
+
+```{r echo=TRUE}
+# Misclassification Ratio
+mis_ratio = (tablePred_AKI[1, 2]+tablePred_AKI[2, 1])/(nrow(test_AKI))
+mis_ratio 
+
+
+```
+The misclassification ratio is 0.01027262 (1.03%), in other words, 98.97% were predicted correctly in the test_AKI part. This was obtained considering p=0.5.
+
+Visualizing the probability plots of AKI for the main variables (GLUCOSE and CREATININE) for different DM assuming all the others as mean/median values.
+
+```{r}
+#Calculating Means of Relevant Explanatory variables
+medianTrainAGE = median(train_AKI$AGE)
+medianTrainAGE
+
+meanTrainGLUCOSE = mean(train_AKI$GLUCOSE)
+meanTrainGLUCOSE
+
+meanTrainCREATININE = mean(train_AKI$CREATININE)
+meanTrainCREATININE
+
+medianTrainDM = median(as.integer(train_AKI$DM))
+medianTrainDM
+
+#Calculating probability of AKI for each DM in function of UREAM and keeping the other parameters as median or mean
+
+##### 1 - CREATININE
+n = 1000
+pXvectorM=rep(0,n)
+pXvectorF=rep(0,n)
+valueV=rep(0,n)
+
+count = 0
+minV = min(train_AKI$CREATININE)
+maxV = max(train_AKI$CREATININE)
+
+
+for(i in seq(1:n+1)){
+  valueV[i] = minV+(maxV-minV)*count/n
+  
+  # DM = 1
+  dmV = 1
+  expV = exp(-71.102440-0.003436*meanTrainGLUCOSE+48.002438*valueV[i]+0.856600*dmV)
+  
+  pXvectorM[i]=expV/(1+expV)
+  
+  # DM = 0
+  dmV = 0
+  expV = exp(-71.102440-0.003436*meanTrainGLUCOSE+48.002438*valueV[i]+0.856600*dmV)
+  
+  pXvectorF[i]=expV/(1+expV)
+  
+  
+  count = count + 1
+}
+
+#pXvector
+
+
+dfPlot <-data.frame(valueV,pXvectorM, pXvectorF)
+
+#Generating UREA Probability plot
+ggplot(data=dfPlot, aes(x=valueV) ) + 
+  geom_line(aes(y=pXvectorM),colour="#00BA38", size = 2)+
+  geom_line(aes(y=pXvectorF),colour="red", size = 2)+
+  annotate("text", x= 1.52, y=0.4, label = "DM=0", color="Red")+
+  annotate("text", x= 1.45, y=0.6, label = "DM=1", color="#00BA38")+
+  #geom_hline(yintercept=0.0, color="blue", size=2)+
+  #geom_hline(yintercept=1, color="blue", size=2)+
+  xlim(1.25,1.75)+
+  ggtitle("Prob AKI and X = CREATININE : All other variables as means")+
+  labs(x = "X = CREATININE", y = "Prob AKI")
+
+  
+
+##### 2 - GLUCOSE
+
+n = 100
+pXvectorM=rep(0,n)
+pXvectorF=rep(0,n)
+valueV=rep(0,n)
+
+count = 0
+minV = min(train_AKI$GLUCOSE)
+maxV = max(train_AKI$GLUCOSE)
+
+for(i in seq(1:n+1)){
+  valueV[i] = minV+(maxV-minV)*count/n
+  
+   # DM = 1
+  dmV = 1
+  expV = exp(-71.102440-0.003436*valueV[i]+48.002438*meanTrainCREATININE+0.856600*dmV)
+  
+  pXvectorM[i]=expV/(1+expV)
+  
+  # DM = 0
+  dmV = 0
+  expV = exp(-71.102440-0.003436*valueV[i]+48.002438*meanTrainCREATININE+0.856600*dmV)
+  
+  pXvectorF[i]=expV/(1+expV)
+  
+  
+  count = count + 1
+}
+
+#pXvector
+
+
+dfPlot <-data.frame(valueV,pXvectorM, pXvectorF)
+
+#Generating UREA Probability plot
+ggplot(data=dfPlot, aes(x=valueV) ) + 
+  geom_line(aes(y=pXvectorM),colour="#00BA38", size = 2)+
+  geom_line(aes(y=pXvectorF),colour="red", size = 2)+
+  #annotate("text", x= 40, y=0.7, label = "FEMALE", color="Red")+
+  #annotate("text", x= 30, y=0.5, label = "MALE", color="#00BA38")+
+  geom_hline(yintercept=0.0, color="blue", size=2)+
+  geom_hline(yintercept=1, color="blue", size=2)+
+  ggtitle("Prob AKI and X = GLUCOSE : All other variables as means")+
+  labs(x = "X = GLUCOSE", y = "Prob AKI")
+
+
+
+
+```
+Based on the first plot in terms of CREATININE, the probability of having AKI is slightly different between having or no DM.No probability is expected for values of CREATININE lower than approximatelly 1.35, whereas 100% of probability of AKI for values approximately higher than 1.6. Between these values the probability follow this curve. The value obtaining here were assumed the mean of CREATININE in train part. 
+
+
+For the second plot in terms of GLUCOSE, the probability of AKI is zero considering the mean CREATININE value in train part.
+
+
+#(B.2) LINEAR DISCIMINATION ANALYSIS (LDA)
+
+To build the LDA model, we need to fulfil the assumptions that is variables need to be normally distributed. Therefore, we checked the normality of the quantitative variables in Heart Failure section and found all of them are not normally distributed as p value is less than 0.05 which reject null hypothesis. So, we exclude all quantitative variables.
+
+As among our significant variables, both creatinine and glucose quantitative variables are not normally distributed, we cannot make the LDA model with only one categorical variable DM. 
+
+Therefore, It is not possible to build LDA model with only DM categorical significant variable and thus LDA model is not valid for this case.
+
+However, we tried to build LDA model with suggested models with the categorical variables indicated by the independence test presented in item contingent table. So, we considered one of the suggested models categorical variables STEMI and DM to build the LDA model and do further analysis to see the result of misclassification rate. we tried another suggested model with variables RAISED.CARDIAC.ENZYMES and PRIOR.CMP but we found misclassification rate is higher than this. 
+
+```{r}
+names (train_AKI)
+```
+
+```{r echo=TRUE}
+library(MASS)
+
+#Creating the LDA model based on training part
+# AKI_lda.fit<-lda(AKI~factor(GENDER)+AGE+GLUCOSE+HB+TLC+CREATININE+UREA+EF+
+#                    factor(STEMI)+factor(DM), data = train_AKI)
+
+AKI_lda.fit<-lda(AKI~
+                   factor(STEMI)+factor(DM), data = train_AKI)
+AKI_lda.fit
+
+
+```
+
+The LDA output indicates that our prior probabilities are 0.7882539 and 0.2117461 or in other words, 78.8% of the training observations are patients who are not having ACUTE KIDNEY INJURY and 21.2 % represent those that are having ACUTE KIDNEY INJURY. It also provides the group means.
+
+The The prior probabilities are as expected when it was created the train_AKI part.
+
+```{r echo=TRUE}
+#Plotting visualize how are the distribution of "Y" and "N"
+plot(AKI_lda.fit)
+```
+
+```{r echo=TRUE}
+#Checking the prediction based on test_AKI part
+AKI.pred<-predict(AKI_lda.fit,test_AKI)
+
+#diabetes.pred
+names(AKI.pred)
+
+#Plotting pairwise plot of the training set
+#pairs(train_AKI)
+
+# Checking the confusion table (Predicted versus real value in test_AKI part)
+tablePred_AKI=table(AKI.pred$class, test_AKI$AKI)
+
+tablePred_AKI
+
+```
+1989 "N" were predicted correctly, whereas 218 were wrong. In terms of "Y", 318 were predicted correctly, whereas 6 were wrong. This was obtained assuming P(Y=pos|X1,…,Xp)≥0.5.
+
+```{r echo=TRUE}
+# Misclassification Ratio
+mis_ratio = (tablePred_AKI[1, 2]+tablePred_AKI[2, 1])/(nrow(test_AKI))
+mis_ratio 
+
+
+```
+The misclassification ratio is 0.08850257 (8.9%), in other words, 91.1% were predicted correctly the test_AKI part. This was obtained assuming P(Y=pos|X1,…,Xp)≥0.5.
+
+Checking the error of some pair parameters.
+
+```{r echo=TRUE}
+library(klaR)
+
+# partimat(AKI~factor(GENDER)+AGE+GLUCOSE+HB+CREATININE+factor(STEMI)+factor(DM),
+#          data=train_AKI, method="lda")
+partimat(AKI~factor(STEMI)+factor(DM),
+         data=train_AKI, method="lda")
+# graphics.off()
+#  par("mar")
+#  par(mar=c(1,1,1,1))
+```
+
+from the partiion plot, we see that DM and STEMI is showing error rate 0.212 which is similar to misclassification rate.
+
+#(B.3) QUADRATIC DISCRIMINATION ANALYSIS
+
+We have built QDA model with and without 10 k-fold cross validation (CV) to see the results. QDA analysis done considering significant variables only that is Creatinine, Glucose, and DM. 
+
+```{r echo=TRUE}
+# Creating the QDA model based on train_AKI part
+AKI_qda.fit<-qda(AKI~CREATININE+GLUCOSE+factor(DM), data = train_AKI)
+AKI_qda.fit
+```
+For the model built without CV, we found the QDA model output indicates that 78.8% of the training observations are patients who are not having ACUTE KIDNEY INJURY and 21.2 % represent those that are having ACUTE KIDNEY INJURY. It also provided the group means of each variable. 
+
+```{r echo=TRUE}
+# Applying the model to the test_AKI data to predict the response variable
+AKI.pred<-predict(AKI_qda.fit, test_AKI)$class
+
+tablePred_AKI=table(AKI.pred, test_AKI$AKI)
+
+tablePred_AKI
+```
+1987 "N" were predicted correctly, whereas 39 were wrong. In terms of "Y",497 were predicted correctly, whereas 8 were wrong. This was obtained assuming P(Y=pos|X1,…,Xp)≥0.5.
+
+```{r echo=TRUE}
+# Misclassification Ratio
+mis_ratio = (tablePred_AKI[1, 2]+tablePred_AKI[2, 1])/(nrow(test_AKI))
+mis_ratio 
+
+
+```
+The misclassification ratio is 0.01856974 (1.86%), in other words, 98.14% were predicted correctly the test_AKI part. This was obtained assuming P(Y=pos|X1,…,Xp)≥0.5.
+
+We have drawn the partition plot to identify the lowest error rate for the associated variables. Here we included STEMI category variable along with significant ones due to LDA model was built considering STEMI and to see the error rate with others in QDA partition plot.
+```{r echo=TRUE}
+library(klaR)
+
+partimat(AKI~CREATININE++GLUCOSE+factor(DM)+factor(STEMI),
+         data=train_AKI, method="qda")
+
+```
+From the partition plot, we see that Creatinine and DM is showing lowest error rate that is 0.018. 
+
+We tried redoing QDA model with only these two variables to see the result and we found the misclassification rate is 0.01738443 (1.72%) which is slightly improved from actual QDA model rate 1.86%.
+
+#(B.4) CLASSIFICATION TREE
+
+```{r echo=TRUE}
+library(tree)
+
+# Doing the Classification Tree
+AKI_tree.fit<-tree(AKI~CREATININE+GLUCOSE+factor(DM), train_AKI)
+
+
+summary(AKI_tree.fit)
+```
+From the model, we found the classification model only selected creatinine variable to construct the tree and the total number of terminal nodes selected by model is 3.
+
+Further we plot the tree for better visualization and due to only 3 terminal nodes, we did not prune the tree as this showing the optimal view/result for the prediction. 
+```{r echo=TRUE}
+
+#Plotting the tree
+plot(AKI_tree.fit)
+text(AKI_tree.fit ,pretty =0)
+```
+The tree only has 3 terminal nodes, with only 1 class (CREATININE) as splitting rules. In addition, it is possible to see on the right side (CREATININE < 1.505), if an observation falls there, it will always indicate Acute Kidney Injury.
+
+Let us check the probability in each terminal node.
+```{r}
+# Check the nodes of the tree
+AKI_tree.fit
+```
+
+Here we see that, in case of CREATININE > 1.505 where a purity has reached to 100% of ”1" as prediction whereas CREATININE < 1.505 showing almost similar probability 48% and 51% for both ”0” and ”1, Consequently it is possible the majority of wrong predictions happen there. For the left side of tree where creatinine <1.4, the difference of probability is also significant, the “0” probability is showing 99.98% so probability of ”0" is very high.
+```{r}
+#Generating plots with regions
+ggplot(data=train_AKI, aes(x=CREATININE, y=GLUCOSE, color=AKI))+
+  geom_point(size=2, alpha=0.5)+
+  scale_color_manual(labels=c("No", "Yes"), values = c("#00BA38","red"))+
+  geom_vline(xintercept=1.505, color="blue", size=2)+
+  geom_vline(xintercept=1.415, color="blue", size=2)+
+  ggtitle("Classification Tree Regions for AKI - CREATININE x GLUCOSE")
+
+
+
+ggplot(data=train_AKI, aes(x=CREATININE, y=GLUCOSE, color=AKI))+
+  geom_point(size=2, alpha=0.5)+
+  scale_color_manual(labels=c("No", "Yes"), values = c("#00BA38","red"))+
+  geom_vline(xintercept=1.505, color="blue", size=2)+
+  geom_vline(xintercept=1.415, color="blue", size=2)+
+  xlim(0,3)+
+  ggtitle("Classification Tree Regions for AKI - CREATININE x GLUCOSE")
+
+
+
+```
+For further visualization, we have drawn the classification tree regions for Creatinine vs Glucose along with AKI for better visualization.
+
+From this plot, we see that, AKI “1”-Yes and “0”-No is well divided into two regions. Both yes and no of AKI data is merged within blue line where creatinine value is around 1.5 where most of the wrong prediction were happened. 
+
+Apply the tree to the test_AKI set, calculate the root square of the mean squared error (RMSE)
+```{r echo=TRUE}
+# Set a seed for random number generation
+set.seed(10)
+
+# Applying the unpruned tree to test_AKI part
+AKI_tree.pred<-predict(AKI_tree.fit,test_AKI,type = "class")
+tablePred_AKI=table(AKI_tree.pred,test_AKI$AKI)
+
+tablePred_AKI
+
+
+```
+1962 "N" were predicted correctly, whereas 0 were wrong. In terms of "Y", 536 were predicted correctly, whereas 33 were wrong.
+
+```{r echo=TRUE}
+# Misclassification Ratio
+mis_ratio = (tablePred_AKI[1, 2]+tablePred_AKI[2, 1])/(nrow(test_AKI))
+mis_ratio 
+
+
+
+```
+The misclassification ratio is 0.01303832 (1.3%), in other words, 98.7% were predicted correctly the test_AKI part.
+
+
+It was not necessary to prune the tree seeing that just few nodes were provided.
+
+
+#(B.5) LOGISTIC REGRESSION  with stratified 10-fold cross-validation
+
+Randomly dividing the total clean observations in folds with approximately equal size as well as proportion of AKI of "Y" and "N".
+```{r echo=TRUE}
+library(caret)
+
+# Set a seed for random number generation
+set.seed(10)
+
+# Creating 10 folds
+folds_AKI<-createFolds(as.factor(dataClean$AKI), k=10)
+
+#Checking the units in each fold
+fold01_AKI<-dataClean[folds_AKI$Fold01,]
+fold02_AKI<-dataClean[folds_AKI$Fold02,]
+fold03_AKI<-dataClean[folds_AKI$Fold03,]
+fold04_AKI<-dataClean[folds_AKI$Fold04,]
+fold05_AKI<-dataClean[folds_AKI$Fold05,]
+fold06_AKI<-dataClean[folds_AKI$Fold06,]
+fold07_AKI<-dataClean[folds_AKI$Fold07,]
+fold08_AKI<-dataClean[folds_AKI$Fold08,]
+fold09_AKI<-dataClean[folds_AKI$Fold09,]
+fold10_AKI<-dataClean[folds_AKI$Fold10,]
+table(fold01_AKI$AKI)
+table(fold02_AKI$AKI)
+table(fold03_AKI$AKI)
+table(fold04_AKI$AKI)
+table(fold05_AKI$AKI)
+table(fold06_AKI$AKI)
+table(fold07_AKI$AKI)
+table(fold08_AKI$AKI)
+table(fold09_AKI$AKI)
+table(fold10_AKI$AKI)
+
+#folds_AKI
+
+
+
+```
+It is possible to verify that AKI responses were approximately equally distributed.
+
+
+```{r echo=TRUE}
+# Creating function to calculate misclassification rate for Logistic Regression
+library(MASS)
+
+misclassification_LOGISTIC_AKI<-function(idx_AKI){
+  # Select the other folders to train_AKIing part
+  trainFold_AKI<-dataClean[-idx_AKI,]
+  
+  # The current fold as the validation (test_AKI) part
+  validationFold_AKI<-dataClean[idx_AKI,]
+  
+  #Fit the Logistic Regression model for the train_AKIing Fold part
+  fit_LOGISTICmodel_AKI<-glm(AKI~CREATININE+GLUCOSE+factor(DM), family=binomial,
+                             data=trainFold_AKI)
+  
+  
+  # Applying the validation part to the fitted model and predict the HEART FAILURE
+  pred_AKI<-predict(fit_LOGISTICmodel_AKI,validationFold_AKI)
+  
+  AKI.predict=rep("0", nrow(validationFold_AKI))
+
+  AKI.predict[pred_AKI >= 0.5]="1"
+
+  
+  #return the mean error of the prediction for the idx_AKI fold
+  return(1-mean(AKI.predict==validationFold_AKI$AKI))
+}
+```
+
+
+```{r echo=TRUE}
+# Set a seed for random number generation
+set.seed(10)
+
+# calculating the misclassification rate of each fold - Logistic Regression
+mis_rate_Logistic_AKI=lapply(folds_AKI, misclassification_LOGISTIC_AKI)
+
+# calculating the misclassification rate for each fold
+#mis_rate_LOGISTIC_AKI
+
+# Calculating the average misclassification rate
+mean(as.numeric(mis_rate_Logistic_AKI))
+
+```
+For Logistic Regression stratified with 10-folds, the misclassification rate is 0.0106144 (1.11%).
+
+
+#(B.6) LDA with stratified 10-fold cross-validation
+We are not able to consider any quantitative variable as it was verified previously that they are not normally distributed.
+
+As mentioned earlier, among our significant variables, both creatinine and glucose quantitative variables are not normally distributed, we cannot make the LDA model with only one categorical variable DM. 
+
+Therefore, It is not possible to build LDA model with only DM categorical significant variable and thus LDA model is not valid for this case.
+
+However, we tried here to build LDA model with suggested models with the categorical variables indicated by the independence test presented in item contingent table. So, we considered one of the suggested models categorical variables STEMI and DM to build the LDA model and do further analysis to see the result of misclassification rate. 
+
+```{r echo=TRUE}
+# Creating function to calculate misclassification rate for LDA
+library(MASS)
+
+misclassification_LDA_AKI<-function(idx_AKI){
+  # Select the other folders to train_AKIing part
+  trainFold_AKI<-dataClean[-idx_AKI,]
+  
+  # The current fold as the validation (test_AKI) part
+  validationFold_AKI<-dataClean[idx_AKI,]
+  
+  #Fit the LDA model for the train_AKIing Fold part
+  #fit_LDAmodel_AKI<-lda(AKI~CREATININE+GLUCOSE+factor(DM), data=trainFold_AKI)
+  fit_LDAmodel_AKI<-lda(AKI~factor(STEMI)+factor(DM), data=trainFold_AKI)
+  
+  # Applying the validation part to the fitted model and predict the Type
+  pred_AKI<-predict(fit_LDAmodel_AKI,validationFold_AKI)
+  
+  #return the mean error of the prediction for the idx_AKI fold
+  return(1-mean(pred_AKI$class==validationFold_AKI$AKI))
+}
+
+```
+
+
+```{r echo=TRUE}
+# Set a seed for random number generation
+set.seed(10)
+
+# calculating the misclassification rate of each fold - LDA 
+mis_rate_LDA_AKI=lapply(folds_AKI, misclassification_LDA_AKI)
+
+# calculating the misclassification rate for each fold
+#mis_rate_LDA_AKI
+
+# Calculating the average misclassification rate
+mean(as.numeric(mis_rate_LDA_AKI))
+
+```
+For LDA stratified with 10-folds, the misclassification rate is 0.2117529 (21.2%).
+To compare, we also built model with 10 k-fold CV and analysis the outcome where we found the misclassification rate is same. 
+
+
+#(B.7) QDA with stratified 10-fold cross-validation
+```{r echo=TRUE}
+# Creating function to calculate misclassification rate for QDA
+library(MASS)
+
+misclassification_LDA_AKI<-function(idx_AKI){
+  # Select the other folders to train_AKIing part
+  trainFold_AKI<-dataClean[-idx_AKI,]
+  
+  # The current fold as the validation (test_AKI) part
+  validationFold_AKI<-dataClean[idx_AKI,]
+  
+  #Fit the QDA model for the train_AKIing Fold part
+  fit_QDAmodel_AKI<-qda(AKI~CREATININE+GLUCOSE+factor(DM), data=trainFold_AKI)
+  
+  # Applying the validation part to the fitted model and predict the Type
+  pred_AKI<-predict(fit_QDAmodel_AKI,validationFold_AKI)
+  
+  #return the mean error of the prediction for the idx_AKI fold
+  return(1-mean(pred_AKI$class==validationFold_AKI$AKI))
+}
+
+```
+
+
+```{r echo=TRUE}
+# Set a seed for random number generation
+set.seed(10)
+
+# calculating the misclassification rate of each fold - QDA
+mis_rate_QDA_AKI=lapply(folds_AKI, misclassification_LDA_AKI)
+
+# calculating the misclassification rate for each fold
+#mis_rate_QDA_AKI
+
+# Calculating the average misclassification rate
+mean(as.numeric(mis_rate_QDA_AKI))
+
+```
+For QDA stratified with 10-folds, the misclassification rate is 0.02340727 (2.34%).
+
+
+#(A.8) Classification Tree with stratified 10-fold cross-validation
+
+```{r echo=TRUE}
+# Creating function to calculate misclassification rate for Classification Tree
+library(tree)
+
+misclassification_TREE_AKI<-function(idx_AKI){
+  # Select the other folders to train_AKIing part
+  trainFold_AKI<-dataClean[-idx_AKI,]
+  
+  # The current fold as the validation (test_AKI) part
+  validationFold_AKI<-dataClean[idx_AKI,]
+  
+  #Fit the Tree model for the train_AKIing Fold part
+  fit_TREEmodel_AKI<-tree(AKI~CREATININE+GLUCOSE+factor(DM), data=trainFold_AKI)
+  
+  # Applying the validation part to the fitted model and predict the Type
+  pred_AKI<-predict(fit_TREEmodel_AKI,validationFold_AKI, type = "class")
+  
+  
+  #return the mean error of the prediction for the idx_AKI fold
+  return(1-mean(pred_AKI==validationFold_AKI$AKI))
+}
+
+
+```
+
+
+```{r echo=TRUE}
+# Set a seed for random number generation
+set.seed(10)
+
+# calculating the misclassification rate of each fold - Classification Tree
+mis_rate_ClassificationTREE_AKI=lapply(folds_AKI, misclassification_TREE_AKI)
+
+# calculating the misclassification rate for each fold
+#mis_rate_ClassificationTREE_AKI
+
+# Calculating the average misclassification rate
+mean(as.numeric(mis_rate_ClassificationTREE_AKI))
+
+
+```
+
+
+For Classification tree considering stratified with 10-folds, the misclassification rate is  0.01333358 (1.33%).
+
+
+
+#(B.9) SUMMARY oF AKI MODELS
+
+The summary results of the different models created to predict AKI not only using stratified sampling (75% train part, 25% test part), but also with 10 k-fold Stratified Cross-validation, which the results in term of misclassification rate are presented below-
+
+
+1) 75% train_AKI part and 25% Prediction Part (no k-Fold Cross-Validation) 
+LOGISTIC REGRESSION: Misclassification Rate = 1.03%
+#LDA: Misclassification Rate = "It is not possible to use this with significant variables and at the same time because all the quantitative variables are not normally distributed"
+QDA: Misclassification Rate = 1.86%
+Classifiation Tree: Misclassification Rate = 1.3%
+
+
+1) 10--Fold Cross-Validation
+LOGISTIC REGRESSION: Misclassification Rate = 1.11%
+#LDA: Misclassification Rate = "It is not possible to use this with significant variables and at the same time because all the quantitative variables are not normally distributed"
+QDA: Misclassification Rate = 2.34%
+Classifiation Tree: Misclassification Rate = 1.33%
+
+
+NB: However, we attempted to build LDA model with suggested models with the categorical variables (STEMI and DM) as indicated by the independence test presented in contingent table section to see the difference and results and we found misclassification rate is 21.2% with and without CV cases which is higher than other models and does not predict AKI positive effectively.
+
+
+Based on the results above, the Logistic Regression model without stratified sampling indicated the lowest or best misclassification rate of 1.03% among all the generated models to predict AKI. However, we did not observe significant differences with logistic regression with 10 k-fold stratified cross validation and classification tree with and without cross validation.
+
+```{r}
+head(dataClean)
+```
+
+## IV.2 - Quantitative Response Variables (DURATION OF STAY IN HOSPITAL)
+
+# IV.2.1 - LINEAR REGRESSION IN PREDICTING DURATION OF STAY IN HOSPITAL
+
+
+```{r}
+
+head(dataClean)
+
+```
+
+```{r}
+
+dim(dataClean)
+
+```
+
+```{r}
+
+summary(dataClean)
+
+```
+
+
+```{r}
+names(dataClean)
+
+```
+
+
+
+Creating the linear model using numerical variables and one categorical variable (Gender) to determine the coefficients and P-value in order to find out which ones are statistically relevant.
+
+
+```{r}
+
+library(mctest)
+
+```
+
+
+
+```{r}
+
+linearModel1 <- lm(DURATION.OF.STAY~factor(GENDER)+AGE+HB+TLC+PLATELETS+GLUCOSE+UREA+CREATININE, data = dataClean)
+
+summary(linearModel1)
+
+```
+Removing PLATELETS and CREATININE from the model
+
+```{r}
+
+linearModel2 <- lm(DURATION.OF.STAY~factor(GENDER)+AGE+HB+TLC+GLUCOSE+UREA, data = dataClean)
+
+summary(linearModel2)
+
+```
+Obviously GENDER has no effect on how long a patient will remain on admission. Therefore, removing GENDER from the linear model
+
+```{r}
+
+linearModel3 <- lm(DURATION.OF.STAY~AGE+HB+TLC+GLUCOSE+UREA, data = dataClean)
+
+summary(linearModel3)
+
+```
+
+
+With the low R-squared value, it means that the predictors can only account for 7% of the response function using this model.
+
+
+Proceeding with this linear equation for further analysis that will test the appropriateness of the model.
+
+```{r}
+
+confint(linearModel3)
+
+```
+
+None of the independent variables crossed the zero mark between the low and high points in their 95% confidence interval, so we can utilize all in the model. Therefore age will vary by 0.012 to 0.025 for every day spent in admission, if HB, TLC, GLUCOSE and UREA are held constant.The same interpretation goes to other independent variables.
+
+
+Plotting the relationship between one of the predictors and the response function
+
+```{r}
+
+Duration = function(x){coef(linearModel3)[6]*x+coef(linearModel3)[5]*x+coef(linearModel3)[4]*x+coef(linearModel3)[3]*x+coef(linearModel3)[2]*x+coef(linearModel3)[1]}
+ggplot(data=dataClean,mapping= aes(x=UREA,y=DURATION.OF.STAY,colour=AGE))+geom_point()+ geom_smooth(method = "lm", se=FALSE, color=scales::hue_pal()(2)[1])
+
+```
+
+
+```{r}
+library(mctest)
+
+```
+
+
+```{r}
+
+pairs(~AGE+HB+TLC+GLUCOSE+UREA, data = dataClean)
+
+```
+
+The plot above shows minimal linear relationships. However, TLC seems to be linear with the rest of the independent variables.
+
+The next will be to test for multicollinearity between the independent variables.
+
+```{r}
+imcdiag(mod = linearModel3, method = "VIF")
+
+```
+The above VIF test failed to detect multicollinearity.
+
+
+The next will be to test for heteroscedasticity (non constant variance) based on the following assumptions:
+
+
+$$
+\begin{aligned}
+  \ H_0:  \  Heteroscedasticity \ is \ not \ present \ (Homoscedasticity) \  \ \ \ \ \ \ \ \ \\
+  \ H_a:  \  Heteroscedasticity \ is \ present \  \  \ \ \ \ \ \ \ \  \ \ \ \ \ \ \ \ \  \ \ \ \ \ \ \  \ \ \ \ \ \ \ \ \ \  \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \\
+\end{aligned}
+$$
+
+
+```{r}
+
+ggplot(linearModel3, aes(x=.fitted, y=.resid)) + geom_point() + geom_smooth() + geom_hline(yintercept = 0) + ggtitle("Residual plot: Residual vs Fitted Values")
+
+```
+There seem to be some scatter in the residuals plot above as the residuals tend to deviate from a horizontal band. There is also evidence of varying spread of the residuals. Suspecting heteroscedasticity.
+
+
+
+```{r}
+
+ggplot(linearModel3, aes(x=.fitted, y=sqrt(abs(.stdresid)))) + geom_point() + geom_smooth() + geom_hline(yintercept = 0) + ggtitle("Scale-Location plot: Standardized Residual vs Fitted Values")
+
+```
+
+There seem to be some scatter in the scaled location plot of the residuals above as the residuals tend to deviate from a horizontal band.
+
+
+
+The next will be to perform the BPtest for heteroscedasticity.
+
+
+```{r}
+library(lmtest) # installing package
+
+
+```
+
+
+```{r}
+
+bptest(linearModel3)
+
+```
+With a P-value of 2.2e-16 which is very much less than 0.05, we reject the null hypothesis that states that heterostedasticity is not present. 
+
+
+The next set of test will be the normality test.
+
+
+$$
+\begin{aligned}
+  \ H_0:  \  The \ sample \ data \ are \ significantly \ normally \ distributed\ \ \ \ \ \ \ \\
+  \ H_a:  \ The \ sample \ data \ are \ not \ significantly \ normally \ distributed\\
+\end{aligned}
+$$
+
+
+```{r}
+
+qplot(residuals(linearModel3),geom ="histogram", binwidth = 1, main = " Histogram of residuals", xlab = "residuals", color = "red", fill = I("blue"))
+
+```
+From the plot above, the residuals seem to be normally distributed with a slight skew to the right. We will then proceed to do the Q-Q plot.
+
+```{r}
+
+ggplot(dataClean, aes(sample = linearModel3$residuals)) + stat_qq() + stat_qq_line() + ggtitle("Q-Q Plot of Residuals for linearmodel3")
+
+```
+The Q-Q plot above shows that the residuals seem to have normal distribution as they overlay the normal line plot except towards the right end of the plot where they separate from the line.
+
+
+The next will be to carry out the Shapiro test for normality.
+
+
+```{r}
+shapiro.test(residuals(linearModel3)[10:5000]) # Testing for normality
+
+```
+With such low p-value<2.2e-16<0.05, it is evident that the null hypothesis that there is normal distribution in the residuals of the model should be rejected in this case.
+
+
+```{r}
+
+dataClean[cooks.distance(linearModel3)>1,]
+
+```
+
+
+```{r}
+
+plot(linearModel3, pch=18, col="red", which = c(4))
+
+
+```
+
+There does not seem to be any significant outliers as all cook's distances computed are less than 0.5
+
+
+
+
+Using stepwise regression to confirm model selection
+
+```{r}
+
+library(olsrr)
+
+```
+
+
+```{r}
+forwardModel = ols_step_forward_p(linearModel1, penter = 0.05, details = TRUE) # stepwise regression model using "forward" option.
+
+```
+
+The forward stepwise regression also picked UREA+HB+TLC+GLUCOSE+AGE as the independent variables
+
+
+Applying the backward stepwise regression to pick the right equation
+
+```{r}
+
+backwardModel = ols_step_backward_p(linearModel1, prem = 0.05, details = T) # stepwise regression model using "backward" option.
+
+```
+
+The backward stepwise regression also picked UREA+HB+TLC+GLUCOSE+AGE as the independent variables
+
+
+
+# IV.2.2 -  REGRESSION TREE IN PREDICTING DURATION OF STAY IN HOSPITAL
+
+Applying the model to Regression Tree on a 25:75 percent split
+
+```{r}
+library(tree)
+set.seed (10)
+idtree=sample(1:nrow(dataClean),3/4*nrow(dataClean))
+trainTree=dataClean[idtree,]
+testTree=dataClean[-idtree,]
+tree.clean<-tree(DURATION.OF.STAY~AGE+HB+TLC+GLUCOSE+UREA, trainTree)
+summary(tree.clean)
+
+```
+Plotting the tree
+
+```{r}
+
+plot(tree.clean)
+text(tree.clean ,pretty =0)
+
+```
+
+With the above minimalistic number of nodes, there is no need to prune the tree further. Therefore, the Regression Tree only used UREA and TLC to predict "DURATION.OF.STAY" in the model.
+
+
+```{r}
+#Generating plots with regions
+ggplot(data=trainTree, aes(x=UREA, y=TLC))+
+  geom_point(size=2, alpha=0.5, color = "green")+
+  geom_vline(xintercept=43.5, color="blue", size=2)+
+  geom_segment(aes(x=0,y=10.95, xend=43.5,yend=10.95), color="blue", size=2)+
+  ggtitle("Regression Tree Regions for DURATION.OF.STAY- TLC x UREA")
+
+
+
+```
+
+Applying the tree to the test set, we get
+
+```{r}
+
+tree_hat<-predict(tree.clean,testTree)
+plot(tree_hat,testTree$DURATION.OF.STAY)
+abline(0,1)
+sqrt(mean((tree_hat-testTree$DURATION.OF.STAY)^2))
+
+
+```
+
+The root square of the mean square error of the tree is 5.008
+
+
+# IV.2.3 - LINEAR REGRESSION VS REGRESSION TREE COMPARISON IN PREDICTING DURATION OF STAY IN HOSPITAL
+
+
+```{r}
+library(caret)
+library(AppliedPredictiveModeling)
+```
+
+
+```{r}
+
+head(dataClean)
+data(dataClean)
+```
+
+
+
+```{r}
+set.seed(10)
+foldsz<-createFolds(dataClean$DURATION.OF.STAY, k=10)
+summary(foldsz)
+
+```
+
+```{r}
+RMSElinear<-function(id2){
+  TrainzLM<-dataClean[-id2,]
+  TestzLM<-dataClean[id2,]
+  fitzLM<-lm(DURATION.OF.STAY~AGE+HB+TLC+GLUCOSE+UREA, data=TrainzLM)
+  predzLM<-predict(fitzLM,TestzLM)
+  return(sqrt(mean((TestzLM$DURATION.OF.STAY - predzLM)^2)))
+}
+
+
+```
+
+
+
+```{r}
+
+rmsezLM=lapply(foldsz,RMSElinear)
+rmsezLM
+
+```
+Now computing the average RMSE for all the folds from the linear model
+
+```{r}
+
+mean(as.numeric(rmsezLM))
+
+```
+The computed mean RMSE from the linear model is 4.6434
+
+
+
+Applying the same analysis to Regression Tree and getting the RMSE missclassification analysis
+
+
+```{r}
+
+RMSEtree<-function(id2z){
+  TrainRT<-dataClean[-id2z,]
+  TestRT<-dataClean[id2z,]
+  fitRT<-tree(DURATION.OF.STAY~AGE+HB+TLC+GLUCOSE+UREA, TrainRT)
+  predRT<-predict(fitRT,TestRT)
+  return(sqrt(mean((TestRT$DURATION.OF.STAY - predRT)^2)))
+}
+
+```
+
+
+```{r}
+
+rmseRT=lapply(foldsz,RMSEtree)
+rmseRT
+
+```
+Now computing the average RMSE for all the folds using the Regression Tree
+
+```{r}
+
+mean(as.numeric(rmseRT))
+
+```
+The computed mean RMSE from the Regression Tree is 4.6857
+
+Therefore the RMSE from both the Linear Model (4.6434) and the Regression Tree (4.6857) are about the same. The Linear Model has a slightly better RMSE than the Regression Tree, but there is not much of a difference between them.
+
+
+## PART IV -CONCLUSIONS AND RECOMMENDATIONS
+
+Linear regression model is not able to predict the duration of stay effectively as it has an adjusted R-squared of around 7%. In all test cases tried, the null hypothesis assumptions were rejected.
+
+Regression Tree computed with k-folds split did not show any improvement over the the same split carried out on the Linear Model.
+
+In order to be able to effectively predict the duration of a patient's stay in the hospital, it is recommended to incorporate more advanced machine learning algorithms. 
+
+It is also recommended to probe the linear model further by incorporating interaction terms and higher order relationships between the predictor variables and the response variable.
+
+
+
+## PART V - MULTINOMIAL REGRESSION - OUTCOME AS RESPONSE VARIABLE
+
+```{r}
+# Data Partition 
+set.seed(10)
+ind = sample(2,nrow(dataClean),
+             replace = TRUE,
+             prob = c(0.75,0.25))
+
+training = dataClean[ind==1,]
+testing = dataClean[ind==2,]
+
+library(nnet)
+training$OUTCOME = relevel(training$OUTCOME , ref = "EXPIRY")
+mymodel = multinom(OUTCOME~AGE+EF+TLC+HB+DURATION.OF.STAY+ALCOHOL+SMOKING+DM+CAD+CKD+PLATELETS+GLUCOSE+UREA
++ STABLE.ANGINA + ACS+ STEMI, data = training)
+summary(mymodel)
+```
+
+```{r}
+#2 Tailed z test
+z = summary(mymodel)$coefficients/summary(mymodel)$standard.errors
+p = (1 - pnorm(abs(z), 0, 1)) * 2
+p
+```
+
+```{r}
+#Confusion Matrix and Misclassification Error - Training Data
+j = predict(mymodel, training)
+head(j)
+head(training$OUTCOME)
+#Confusion Matrix
+tab = table(j,training$OUTCOME)
+tab
+
+#Misclassification
+1-sum(diag(tab))/sum(tab)
+```
+
+```{r}
+#Confusion Matrix and Misclassification Error - Test Data
+
+#Confusion Matrix
+i = predict(mymodel, testing)
+tab1 = table(i,testing$OUTCOME)
+tab1
+
+#Misclassification Error 
+m_class = (44+2295+1)/2581
+1 - m_class
+```
+
+```{r}
+#Prediction and Model Assessment
+
+#Model Assessment(training data)
+tab/colSums(tab)
+```
+
+```{r}
+#Model Assessment(testing data)
+
+# For Discharge the prediction accuracy is
+2295/(2295+2+26)
+# For EXPIRY the prediction accuracy is
+44/(44+0+90)
+# For DAMA the prediction accuracy is
+1/(5+1+118)
+
+#Overall Misclassification Rate
+(5+26+2+0+118+90)/(5+26+44+1+2+0+118+2295+90)
+```
+
+In summary, For Discharge the prediction accuracy is 0.9879466, for EXPIRY the prediction accuracy is 0.3283582 and
+for DAMA the prediction accuracy is 0.008064516.
+
+```{r echo=TRUE}
+library(tree)
+
+# Doing the Classification Tree
+OUTCOME_tree.fit<-tree(OUTCOME~AGE+EF+TLC+HB+DURATION.OF.STAY+factor(ALCOHOL)+factor(SMOKING)+factor(DM)+factor(CAD)+factor(CKD)+PLATELETS+GLUCOSE+UREA+ STABLE.ANGINA + ACS+ STEMI, data = training)
+
+
+summary(OUTCOME_tree.fit)
+```
+
+```{r echo=TRUE}
+
+#Plotting the tree
+plot(OUTCOME_tree.fit)
+text(OUTCOME_tree.fit ,pretty =0)
+```
+
+Let us check the probability in each terminal node.
+```{r}
+# Check the nodes of the tree
+OUTCOME_tree.fit
+```
+The majority of terminal nodes wih more than 70% for the class indicated by the tree. In addition, the tree model will never predict DAMMA.
+
+Apply the tree to the test set.
+```{r echo=TRUE}
+# Set a seed for random number generation
+set.seed(10)
+
+# Applying the unpruned tree to test part
+OUTCOME_tree.pred<-predict(OUTCOME_tree.fit,testing,type = "class")
+tablePred_OUTCOME=table(OUTCOME_tree.pred,testing$OUTCOME)
+
+tablePred_OUTCOME
+```
+
+```{r}
+#Misclassification Rate
+1-(2304+45+0)/(14+19+45+110+2304+89)
+```
+The overall misclassification rate for OUTCOME with Classification Tree is 0.08988764 (8.99%). However, the model will never predict DAMMA.
+
+
+As the tree indicated several terminal nodes, let us try to prune this.
+
+```{r echo=TRUE}
+# Set a seed for random number generation as the cv select randomly
+set.seed(10)
+
+# Checking the cross-validation error versus the number of Terminal nodes to Prune the tree using FUN
+cv.OUTCOME<-cv.tree(OUTCOME_tree.fit, FUN = prune.misclass) 
+plot(cv.OUTCOME$size, cv.OUTCOME$dev,type="b")
+
+
+```
+
+Based on the cv.error, it looks like the cv.error with 4 terminal nodes is similar to 6. Based on this, let prune the tree to 4 terminal nodes.
+
+```{r echo=TRUE}
+# Prune the tree
+prune.OUTCOME=prune.tree(OUTCOME_tree.fit,best=4)
+plot(prune.OUTCOME)
+text(prune.OUTCOME,pretty=0)
+
+# Check the nodes of the Prune tree
+prune.OUTCOME
+
+```
+
+The pruned tree just indicates DISCHARGE for OUTCOME. Based on the probabilities in the terminal node, the majority of wrong predictions should happens at the terminal node of: EF < 51 and DURATION.OF.STAY < 2.5.
+
+```{r echo=TRUE}
+# Set a seed for random number generation
+set.seed(10)
+
+# Applying the unpruned tree to test part
+OUTCOME_Prune_tree.pred<-predict(prune.OUTCOME,testing,type = "class")
+tablePred_OUTCOME=table(OUTCOME_Prune_tree.pred,testing$OUTCOME)
+
+tablePred_OUTCOME
+
+
+```
+
+```{r}
+#Misclassification Rate
+1-(2323)/(124+2323+134)
+```
+The overall misclassification rate for OUTCOME with the Pruned Classification Tree is 0.09996126 (10%). However, the model will only predict DISCHARGE.
+
+
+
+## PART VI -CONCLUSIONS AND RECOMMENDATIONS
+
+Cluster sampling was not a candidate for our dataset based on the columns available in the cleaned dataset. SRS and stratified sampling were utilized, and SRS provided better accuracy when comparing the sampling means with the population mean. Moreover, SSB was very small compared to SSW which adds another point against stratified sampling being a good candidate for this dataset.
+
+Analysis of independence using Table Contingency helped to select categorical exploratory variables that would be independent among them, but at the same time dependent on the response variable.
+
+ Based on the analysis done for HEART.FAILURE, the relevant and independent explanatory variables which influence on this indicate by our analysis were:
+o	Quantitative: AGE, GLUCOSE, HB, TLC, CREATININE, UREA and EF
+o	Qualitative: GENDER, RAISED.CARDIAC.ENZYMES and PRIOR.CMP 
+
+However, the statistical learning models (except LDA) are possible to predict with almost the same accuracy using only EF and UREA. 
+
+ Regarding the best statistical model to predict HEART FAILURE, the LOGISTIC REGRESSION without cross validation, in other words, using stratified sampling 75% of the total population as train set, indicated the best performance in prediction the training part with misclassification rate of 23.9%, following by Classification Tree without cross validation as well (misclassification of 24.5%). However, QDA model was the one that predicted more correctly the patients with heart failure, whereas LDA (even with only relevant and independent categorical explanatory variables due to no normal distribution of any quantitative variable) which predicted better the patients with no heart failure.
+ 
+ In terms of building the model with 10-fold stratified cross-validation, LDA (only the qualitative variables) had the best performance among all the statistical learning methods with the misclassification rate of 25.3%.
+ 
+ It is important to mention that the normality tests (both Shapiro-Will and Kolmogorov-Smirnov) indicated that none of the quantitative variables has normal distribution, and consequently they were not used in LDA modelling seeing that this statistical learning method requires normal distribution of explanatory variables.
+ 
+Comparing the HEART.FAILURE model and prediction on this project with the one provided by the professor [Ref.5], the final cleaned datasets are totally different between these two projects, for example on this project will have more than 10000 units, whereas the previous work approximately 300 units. In addition, the majority of the explanatory variables used in the previous project were totally different from what was used on our project, for example in the previous project just one categorical variable was available to be used as explanatory variable.
+
+While analysis of different model of acute kidney injury (AKI) and comparing model results, the Logistic Regression model without stratified sampling indicated the lowest or best misclassification rate of 1.03% among all the generated models to predict AKI. However, we did not observe significant differences with logistic regression with 10 k-fold stratified cross validation and classification tree with and without cross validation.
+
+Knowing that the linear model can only explain 7% of the “DURATION.OF.STAY” response function and that the Regression Tree had similar Residual Standard Error as the Linear Regression, we can conclude that the Regression Tree and Linear Regression are not able to predict the “DURATION.OF.STAY” at the hospital properly. Also, the low R-squared value of the Linear Regression made it difficult to pursue interaction terms or even higher order relationship. Therefore, predicting the “DURATION.OF.STAY” at the hospital may best be served by other machine learning algorithms that are best suited to the dataset.
+ 
+The models for OUTCOME (3 class of response possible: DISCHARGE, EXPIRY and DAMA) indicated that Multinomial Regression was the only one that could predict all possible class with overall misclassification rate of 9.3%. Classification Tree without prunning (6 terminal nodes) can only provide prediction for DISCHARGE and EXPIRY with overall misclassification rate of 8.99 %. Prunning the tree to 4 terminal nodes just indicates DISCHARGE for any input in the model, and the misclassification rate obtained for this was 10%. Based on this, werecmmend the built Multinomial Regression model to predict OUTCOME.
+
+
+
